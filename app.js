@@ -1,25 +1,50 @@
-// Сайт-инструкция: 3D-ноутбук, камера и экран меняются по прокрутке
+// Digital Art Atelier: 3D-мастерская по прокрутке + интерфейс страницы
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const sections = [...document.querySelectorAll('[data-ch]')];
-const dots = [...document.querySelectorAll('.dots a')];
 const barFill = document.getElementById('barFill');
+const header = document.getElementById('top');
+const navLinks = [...document.querySelectorAll('.menu a')];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const smooth = x => x * x * (3 - 2 * x);
 
-// ---------- Копирование промптов ----------
+// ---------- Интерфейс ----------
 document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', async () => {
   const el = document.getElementById(b.dataset.copy);
-  const txt = el.textContent.trim();
-  try { await navigator.clipboard.writeText(txt); b.textContent = 'Көшірілді ✓'; }
+  try { await navigator.clipboard.writeText(el.textContent.trim()); b.textContent = 'Көшірілді ✓'; }
   catch (e) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Ctrl+C басыңыз'; }
   setTimeout(() => (b.textContent = 'Көшіру'), 2000);
 }));
+const burger = document.querySelector('.burger'), menu = document.getElementById('menu');
+burger.addEventListener('click', () => { const o = burger.getAttribute('aria-expanded') !== 'true'; burger.setAttribute('aria-expanded', o); menu.classList.toggle('open', o); });
+navLinks.forEach(a => a.addEventListener('click', () => { burger.setAttribute('aria-expanded', 'false'); menu.classList.remove('open'); }));
 
-// ---------- Прогресс прокрутки: t = номер секции (дробный) ----------
-const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-const smooth = x => x * x * (3 - 2 * x);
+// Модальное окно
+let lastFocus = null;
+function openModal(id) {
+  const m = document.getElementById(id); lastFocus = document.activeElement; m.hidden = false;
+  if (window.gsap && !reduce) { gsap.fromTo(m, { opacity: 0 }, { opacity: 1, duration: .25 }); gsap.fromTo(m.querySelector('.modal-box'), { y: 30, scale: .97 }, { y: 0, scale: 1, duration: .4, ease: 'power3.out' }); }
+  m.querySelector('[data-close]').focus(); document.body.style.overflow = 'hidden';
+}
+function closeModal(m) { m.hidden = true; document.body.style.overflow = ''; lastFocus && lastFocus.focus(); }
+document.querySelectorAll('[data-modal]').forEach(b => b.addEventListener('click', () => openModal(b.dataset.modal)));
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) closeModal(m); });
+  m.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(m); });
+});
+
+// Последний результат симулятора
+function showLast() {
+  let h = []; try { h = JSON.parse(localStorage.getItem('atelier:colormix:history')) || []; } catch (e) {}
+  const el = document.getElementById('lastResult');
+  if (h.length) el.innerHTML = `<b>Сіздің соңғы нәтижеңіз</b><strong>${h[0].total}/8</strong><span>Тапсырма: ${h[0].task} · барлығы ${h.length} тәжірибе</span>`;
+}
+showLast(); addEventListener('colormix-saved', showLast);
+
+// Прогресс прокрутки: t = дробный номер сцены
 function scrollT() {
   const vc = innerHeight * 0.5;
   const c = sections.map(s => { const r = s.getBoundingClientRect(); return r.top + r.height / 2; });
@@ -27,440 +52,415 @@ function scrollT() {
   for (let i = 0; i < c.length - 1; i++) if (vc <= c[i + 1]) return i + (vc - c[i]) / (c[i + 1] - c[i]);
   return c.length - 1;
 }
-function ui(t) {
+const navTargets = navLinks.map(a => document.getElementById(a.dataset.nav));
+function ui() {
   const max = document.documentElement.scrollHeight - innerHeight;
   barFill.style.width = (max > 0 ? scrollY / max * 100 : 0) + '%';
-  const on = Math.round(t);
-  dots.forEach((d, i) => d.classList.toggle('on', i === on));
+  header.classList.toggle('solid', scrollY > 40);
+  let on = -1; navTargets.forEach((s, i) => { if (s.getBoundingClientRect().top < innerHeight * 0.45) on = i; });
+  navLinks.forEach((a, i) => a.classList.toggle('on', i === on));
+}
+addEventListener('scroll', ui, { passive: true }); ui();
+
+// ---------- GSAP: появление, параллакс, схема ----------
+function initGsap() {
+  const g = window.gsap;
+  if (!g || !window.ScrollTrigger || reduce) { document.documentElement.classList.remove('js-anim'); return; }
+  g.registerPlugin(ScrollTrigger);
+  g.timeline({ delay: .15 })
+    .to('.hero .reveal', { opacity: 1, y: 0, duration: .9, stagger: .09, ease: 'power3.out' })
+    .from('.artist', { y: 60, opacity: 0, duration: 1.2, ease: 'power3.out' }, 0)
+    .from('.halo', { scale: .85, opacity: 0, duration: 1.2, ease: 'power2.out' }, 0)
+    .from('.tag', { scale: .6, opacity: 0, duration: .6, stagger: .12, ease: 'back.out(2)' }, .5);
+  const sp = document.querySelector('.stroke path'), len = sp.getTotalLength();
+  g.fromTo(sp, { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: 1.8, delay: .4, ease: 'power2.inOut' });
+  document.querySelectorAll('.idea .reveal, .author .reveal').forEach((el, i) => g.to(el, { opacity: 1, y: 0, duration: .8, delay: (i % 3) * .08, ease: 'power3.out',
+    scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } }));
+  document.querySelectorAll('.sec .panel').forEach(p => {
+    g.from(p.children, { opacity: 0, y: 22, duration: .6, stagger: .06, ease: 'power2.out',
+      scrollTrigger: { trigger: p, start: 'top 80%', toggleActions: 'play none none reverse' } });
+  });
+  // Схема «традиция → интерактив» рисуется по прокрутке
+  document.querySelectorAll('.arrow path').forEach(p => { const l = p.getTotalLength(); g.set(p, { strokeDasharray: l, strokeDashoffset: l }); });
+  g.timeline({ scrollTrigger: { trigger: '#problem .scheme', start: 'top 75%', end: 'bottom 45%', scrub: .6 } })
+    .from('#problem .lane.old span', { opacity: 0, x: -20, stagger: .2 })
+    .to('#problem .arrow path', { strokeDashoffset: 0, stagger: .1 })
+    .from('#problem .lane.new span', { opacity: 0, x: 20, stagger: .2 });
+  g.from('.pipe li', { opacity: 0, x: -24, stagger: .15, scrollTrigger: { trigger: '.pipe', start: 'top 80%', end: 'bottom 55%', scrub: .6 } });
+  // Параллакс портрета: мышь и прокрутка
+  const qx = g.quickTo('.artist', 'x', { duration: .8, ease: 'power3' }), qr = g.quickTo('.artist', 'rotation', { duration: .8, ease: 'power3' });
+  const hx = g.quickTo('.halo', 'x', { duration: 1.2, ease: 'power3' });
+  addEventListener('pointermove', e => { const nx = e.clientX / innerWidth - .5; qx(nx * 14); qr(nx * 1.2); hx(nx * -20); }, { passive: true });
+  g.to('.hero-art', { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
+  g.to('.tag', { y: i => (i % 2 ? -10 : 10), duration: 2.4, repeat: -1, yoyo: true, ease: 'sine.inOut' });
 }
 
-function hasWebGL() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } }
-
-// ---------- Рисование на canvas ----------
+// ---------- Canvas-рисование ----------
+const C = { ivory: '#F7F3EB', paper: '#FFFDF8', burg: '#722F3E', forest: '#273F36', gold: '#C6A675', char: '#242424', mute: '#6B6560' };
 function rr(g, x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
 function wrap(g, text, x, y, maxW, lh, maxLines = 99) {
   const words = text.split(' '); let line = '', n = 0;
-  for (const w of words) {
-    const test = line ? line + ' ' + w : w;
-    if (g.measureText(test).width > maxW && line) { g.fillText(line, x, y + n * lh); line = w; if (++n >= maxLines) return; }
-    else line = test;
-  }
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > maxW && line) { g.fillText(line, x, y + n * lh); line = w; if (++n >= maxLines) return; } else line = t; }
   if (line) g.fillText(line, x, y + n * lh);
 }
-// Декоративный «QR» (иллюстрация, не настоящий код)
 const QN = 21;
-const QR = (() => {
-  const m = []; let s = 7;
-  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  for (let y = 0; y < QN; y++) for (let x = 0; x < QN; x++) {
-    const f = (fx, fy) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7;
-    let v;
-    if (f(0, 0) || f(14, 0) || f(0, 14)) {
-      const lx = x < 7 ? x : x - 14, ly = y < 7 ? y : y - 14;
-      v = lx === 0 || lx === 6 || ly === 0 || ly === 6 || (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4);
-    } else if ((x === 7 || y === 7 || x === 13 || y === 13) && (x < 8 || y < 8) && (x < 15 || y < 15)) v = false;
-    else v = rnd() > 0.52;
-    m.push(v);
-  }
-  return m;
-})();
-function drawQR(g, x, y, size, k = 1) {
-  const c = size / QN;
-  g.fillStyle = '#fff'; rr(g, x - c, y - c, size + 2 * c, size + 2 * c, c); g.fill();
-  g.fillStyle = '#0E1020';
-  QR.forEach((v, i) => { if (v && (i / QR.length) <= k) g.fillRect(x + (i % QN) * c, y + Math.floor(i / QN) * c, c + .5, c + .5); });
-}
-// Псевдокод: ширины и цвета токенов по строкам
-const CODE = Array.from({ length: 30 }, (_, i) => {
-  const ind = [0, 1, 1, 2, 2, 2, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 2, 3, 2, 1, 1, 2, 2, 1, 0, 1, 2, 1, 0, 0][i];
-  const n = 1 + ((i * 7) % 4);
-  return { ind, toks: Array.from({ length: n }, (_, j) => ({ w: 40 + ((i * 31 + j * 57) % 120), c: ['#FF8A65', '#8EA0FF', '#47D7A0', '#E6E8F5', '#F7C66B'][(i + j * 2) % 5] })) };
-});
-const SCEN = [
-  ['1. Материал', 'Фанера', 'МДФ → себебі'],
-  ['2. Өлшеу', '130–160 мм', 'Қай өлшем қате'],
-  ['3. Белгілеу', '60 ±2 мм', 'Сызық қызыл'],
-  ['4. Өңдеу', 'Қысқыш → ара', 'Кесік қисық'],
-  ['5. Құрастыру', '60–70°', 'Телефон құлайды'],
-  ['6. Нәтиже', '10 ұпай', 'Ұсыныстар'],
-];
-const PROMPT_LINES = 'Canvas-та көркем еңбек сабағына арналған интерактивті симулятор жаса. Тақырып: ағаштан телефон тұғырын жасау, 6-сынып. Барлық мәтін қазақ тілінде. Бастапқы экран — оқушыға нұсқаулық. Кезеңдер: материал, өлшеу, белгілеу, өңдеу, құрастыру, бағалау…';
+const QR = (() => { const m = []; let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let y = 0; y < QN; y++) for (let x = 0; x < QN; x++) { const f = (fx, fy) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7; let v;
+    if (f(0, 0) || f(14, 0) || f(0, 14)) { const lx = x < 7 ? x : x - 14, ly = y < 7 ? y : y - 14; v = lx === 0 || lx === 6 || ly === 0 || ly === 6 || (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4); }
+    else if ((x === 7 || y === 7 || x === 13 || y === 13) && (x < 8 || y < 8) && (x < 15 || y < 15)) v = false; else v = rnd() > 0.52; m.push(v); }
+  return m; })();
+function drawQR(g, x, y, size, k = 1) { const c = size / QN; g.fillStyle = '#fff'; rr(g, x - c, y - c, size + 2 * c, size + 2 * c, c); g.fill(); g.fillStyle = C.char; QR.forEach((v, i) => { if (v && i / QR.length <= k) g.fillRect(x + (i % QN) * c, y + Math.floor(i / QN) * c, c + .5, c + .5); }); }
+const CODE = Array.from({ length: 30 }, (_, i) => ({ ind: [0, 1, 1, 2, 2, 2, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 2, 3, 2, 1, 1, 2, 2, 1, 0, 1, 2, 1, 0, 0][i], toks: Array.from({ length: 1 + ((i * 7) % 4) }, (_, j) => ({ w: 40 + ((i * 31 + j * 57) % 120), c: ['#E08A6B', '#9FB2E0', '#8CC7A5', '#E6E1D6', '#E7C77B'][(i + j * 2) % 5] })) }));
+const SCEN = [['1. Материал', 'Фанера', 'МДФ → себебі'], ['2. Өлшеу', '130–160 мм', 'Қай өлшем қате'], ['3. Белгілеу', '60 ±2 мм', 'Сызық қызыл'], ['4. Өңдеу', 'Қысқыш → ара', 'Кесік қисық'], ['5. Құрастыру', '60–70°', 'Телефон құлайды'], ['6. Нәтиже', '10 ұпай', 'Ұсыныстар']];
+const GPT_ASK = 'Мына сценарий бойынша Gemini Canvas-қа толық промпт жаз: тақырып, кезеңдер, рубрика 0–2 ұпай, бір index.html файлы, мәтін қазақша.';
+const GPT_ANS = 'Сен тәжірибелі веб-әзірлеуші және әдіскерсің. Canvas-та көркем еңбек сабағына арналған интерактивті симулятор жаса. Бастапқы экран — оқушыға нұсқаулық. Кезеңдер: 1. Материал 2. Өлшеу 3. Белгілеу 4. Өңдеу 5. Құрастыру 6. Бағалау…';
+let MIXV = { a: '#C8323A', b: '#F2C230', result: '#E8792F', progress: 0, done: false, target: '#E8792F' };
 
-function chrome(g, W, H, title, dark = false) {
-  g.fillStyle = dark ? '#12152A' : '#F3F2F8'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#1B1E33'; g.fillRect(0, 0, W, 64);
-  ['#FF6B6B', '#F7C66B', '#47D7A0'].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(34 + i * 26, 32, 8, 0, 7); g.fill(); });
-  g.fillStyle = '#E6E8F5'; g.font = '600 26px Inter'; g.textAlign = 'center'; g.fillText(title, W / 2, 41); g.textAlign = 'left';
+function bar(g, W, title, dark = false) {
+  g.fillStyle = dark ? '#2B2B2B' : '#EDE6D9'; g.fillRect(0, 0, W, 60);
+  ['#D9776B', '#E7C77B', '#8CC7A5'].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(32 + i * 24, 30, 7, 0, 7); g.fill(); });
+  g.fillStyle = dark ? '#EEE' : C.char; g.font = '600 24px Inter'; g.textAlign = 'center'; g.fillText(title, W / 2, 39); g.textAlign = 'left';
 }
-function sparkle(g, x, y, r, c1 = '#8EA0FF', c2 = '#FF8A65') {
-  const gr = g.createLinearGradient(x - r, y - r, x + r, y + r); gr.addColorStop(0, c1); gr.addColorStop(1, c2);
-  g.fillStyle = gr; g.beginPath();
-  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, rad = i % 2 ? r * 0.22 : r; g.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
-  g.closePath(); g.fill();
+function spark(g, x, y, r, c1 = C.gold, c2 = C.burg) { const gr = g.createLinearGradient(x - r, y - r, x + r, y + r); gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, d = i % 2 ? r * .22 : r; g.lineTo(x + Math.cos(a) * d, y + Math.sin(a) * d); } g.closePath(); g.fill(); }
+function chatBubble(g, x, y, w, text, me, k) {
+  g.font = '500 24px Inter';
+  const t = text.slice(0, Math.floor(k * text.length)) + (k < 1 ? '▌' : '');
+  const lines = Math.max(1, Math.ceil(g.measureText(text).width / (w - 60)));
+  const h = 40 + lines * 34;
+  g.fillStyle = me ? '#EFE7D8' : '#fff'; rr(g, x, y, w, h, 22); g.fill();
+  if (!me) { g.strokeStyle = '#E4DCCB'; g.lineWidth = 2; g.stroke(); }
+  g.fillStyle = C.char; wrap(g, t, x + 28, y + 44, w - 56, 34); return h;
 }
 
 function drawScreen(g, W, H, ch, k) {
-  g.save();
-  if (ch === 0) {
-    const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#171B3A'); gr.addColorStop(1, '#2B1D33');
-    g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    sparkle(g, W / 2, 250, 110);
-    g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '800 76px "Inter Tight"'; g.fillText('Сабақ симуляторы', W / 2, 470);
-    g.fillStyle = '#A3A9C7'; g.font = '500 34px Inter'; g.fillText('мұғалім  +  Gemini  =  index.html', W / 2, 540);
-    g.font = '600 26px "JetBrains Mono"'; g.fillStyle = '#47D7A0'; g.fillText('▸ төмен айналдырыңыз', W / 2, 660);
-  } else if (ch === 1) {
-    chrome(g, W, H, 'Сценарий.docx');
-    g.fillStyle = '#fff'; g.fillRect(120, 96, W - 240, H - 96);
-    g.fillStyle = '#1B1E33'; g.font = '800 40px "Inter Tight"'; g.fillText('Телефон тұғыры · 6-сынып', 170, 170);
-    const cols = [170, 470, 760], heads = ['Кезең', 'Дұрыс жауап', 'Қате болса'];
-    g.font = '700 24px Inter'; g.fillStyle = '#6C7BFF'; heads.forEach((h, i) => g.fillText(h, cols[i], 235));
-    const rows = Math.ceil(k * SCEN.length);
-    g.font = '500 25px Inter';
-    for (let r = 0; r < rows; r++) {
-      const y = 290 + r * 72;
-      g.fillStyle = r % 2 ? '#F6F5FB' : '#EEF0FF'; g.fillRect(150, y - 40, W - 300, 66);
-      g.fillStyle = '#1B1E33'; SCEN[r].forEach((c, i) => g.fillText(c, cols[i], y));
-    }
+  g.save(); g.textAlign = 'left';
+  if (ch <= 1) {
+    g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(198,166,117,.5)'; g.lineWidth = 3; rr(g, 40, 40, W - 80, H - 80, 30); g.stroke();
+    spark(g, W / 2, 230, 90);
+    g.fillStyle = C.forest; g.textAlign = 'center'; g.font = '700 70px "Playfair Display"'; g.fillText(ch === 0 ? 'Сабақ симуляторы' : 'Түсіндіру → Әрекет', W / 2, 430);
+    g.fillStyle = C.burg; g.font = 'italic 600 36px "Playfair Display"'; g.fillText(ch === 0 ? 'ChatGPT · Gemini · index.html' : 'оқушы өзі жасап көреді', W / 2, 500);
   } else if (ch === 2) {
-    chrome(g, W, H, 'Gemini');
-    sparkle(g, 120, 140, 34);
-    g.fillStyle = '#1B1E33'; g.font = '700 32px Inter'; g.fillText('Сәлем! Не жасаймыз?', 170, 152);
-    const n = Math.floor(k * PROMPT_LINES.length);
-    g.fillStyle = '#E2E5FF'; rr(g, 300, 210, W - 360, 330, 28); g.fill();
-    g.fillStyle = '#1B1E33'; g.font = '500 27px Inter'; wrap(g, PROMPT_LINES.slice(0, n) + (k < 1 ? '▌' : ''), 336, 262, W - 430, 40, 7);
-    g.fillStyle = '#fff'; rr(g, 60, H - 130, W - 120, 90, 45); g.fill();
-    g.strokeStyle = '#D5D8EA'; g.lineWidth = 2; g.stroke();
-    g.fillStyle = '#5B6080'; g.font = '600 24px Inter'; g.fillText('⚙ Құралдар', 100, H - 76);
-    const on = k > 0.25;
-    g.fillStyle = on ? '#6C7BFF' : '#ECEEF8'; rr(g, 270, H - 110, 150, 50, 25); g.fill();
-    g.fillStyle = on ? '#fff' : '#5B6080'; g.fillText('Canvas', 300, H - 76);
+    g.fillStyle = C.ivory; g.fillRect(0, 0, W, H);
+    const boxes = [['Мұғалім', 'сценарий', C.forest], ['ChatGPT', 'промпт', C.gold], ['Gemini', 'index.html', C.burg], ['Оқушы', 'QR-код', C.forest]];
+    const n = 1 + Math.floor(k * 3.99);
+    boxes.forEach(([t, s, c], i) => {
+      const x = 70 + i * 290, y = 300, on = i < n;
+      g.globalAlpha = on ? 1 : .25; g.fillStyle = '#fff'; rr(g, x, y, 240, 200, 24); g.fill(); g.strokeStyle = c; g.lineWidth = 4; g.stroke();
+      g.fillStyle = c; g.beginPath(); g.arc(x + 120, y - 10, 34, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '700 30px "Playfair Display"'; g.textAlign = 'center'; g.fillText(i + 1, x + 120, y);
+      g.fillStyle = C.char; g.font = '700 32px Inter'; g.fillText(t, x + 120, y + 100); g.fillStyle = C.mute; g.font = '500 24px Inter'; g.fillText(s, x + 120, y + 145); g.textAlign = 'left';
+      if (i < 3) { g.strokeStyle = C.gold; g.lineWidth = 5; g.beginPath(); g.moveTo(x + 248, y + 100); g.lineTo(x + 282, y + 100); g.stroke(); }
+      g.globalAlpha = 1;
+    });
+    g.fillStyle = C.forest; g.font = '700 48px "Playfair Display"'; g.textAlign = 'center'; g.fillText('ChatGPT жазады — Gemini жасайды', W / 2, 160);
   } else if (ch === 3) {
-    chrome(g, W, H, 'Canvas · index.html', true);
-    g.fillStyle = '#1B1E33'; g.fillRect(0, 64, 400, H - 64);
-    g.fillStyle = '#2A2F52'; rr(g, 30, 100, 340, 210, 20); g.fill();
-    g.fillStyle = '#DDE1F5'; g.font = '500 22px Inter'; wrap(g, 'Жоспар: 1. Нұсқаулық 2. Материал 3. Өлшеу 4. Белгілеу 5. Өңдеу 6. Бағалау', 54, 145, 300, 32);
-    g.fillStyle = '#6C7BFF'; rr(g, 430, 84, 120, 44, 12); g.fill();
-    g.fillStyle = '#fff'; g.font = '600 22px Inter'; g.fillText('Код', 466, 114);
-    g.fillStyle = '#A3A9C7'; g.fillText('Алдын ала қарау', 580, 114);
-    const lines = Math.floor(k * CODE.length);
-    for (let i = 0; i < lines; i++) {
-      const y = 160 + i * 21; if (y > H - 20) break;
-      g.fillStyle = '#4B5175'; g.font = '14px "JetBrains Mono"'; g.fillText(String(i + 1).padStart(2, ' '), 432, y + 9);
-      let x = 480 + CODE[i].ind * 30;
-      for (const t of CODE[i].toks) { g.fillStyle = t.c; rr(g, x, y, t.w, 11, 5); g.fill(); x += t.w + 14; }
-    }
+    bar(g, W, 'Сценарий.docx'); g.fillStyle = '#fff'; g.fillRect(110, 90, W - 220, H - 90);
+    g.fillStyle = C.forest; g.font = '700 38px "Playfair Display"'; g.fillText('Телефон тұғыры · 6-сынып', 160, 160);
+    const cols = [160, 460, 750]; g.font = '700 23px Inter'; g.fillStyle = C.burg; ['Кезең', 'Дұрыс жауап', 'Қате болса'].forEach((h, i) => g.fillText(h, cols[i], 225));
+    const rows = Math.ceil(k * SCEN.length); g.font = '500 24px Inter';
+    for (let r = 0; r < rows; r++) { const y = 280 + r * 72; g.fillStyle = r % 2 ? '#FBF8F1' : '#F3ECDF'; g.fillRect(140, y - 40, W - 280, 66); g.fillStyle = C.char; SCEN[r].forEach((c, i) => g.fillText(c, cols[i], y)); }
   } else if (ch === 4) {
-    chrome(g, W, H, 'Алдын ала қарау');
-    g.fillStyle = '#1B1E33'; g.font = '800 34px "Inter Tight"'; g.fillText('Телефон тұғыры', 70, 130);
-    g.fillStyle = '#FFE9E0'; rr(g, W - 260, 98, 190, 46, 23); g.fill();
-    g.fillStyle = '#C2502C'; g.font = '700 22px Inter'; g.fillText(k < 0.55 ? 'Ұпай: 6/10' : 'Ұпай: 8/10', W - 228, 129);
-    for (let i = 0; i < 6; i++) {
-      const x = 90 + i * 110, done = i < 2 || (i === 2 && k >= 0.55);
-      g.fillStyle = done ? '#47D7A0' : i === 2 ? '#6C7BFF' : '#D9DCEB';
-      g.beginPath(); g.arc(x, 195, 22, 0, 7); g.fill();
-      g.fillStyle = '#fff'; g.font = '700 20px Inter'; g.textAlign = 'center'; g.fillText(done ? '✓' : String(i + 1), x, 202); g.textAlign = 'left';
-      if (i < 5) { g.fillStyle = '#D9DCEB'; g.fillRect(x + 26, 193, 58, 4); }
-    }
-    g.fillStyle = '#fff'; rr(g, 60, 250, W - 120, 380, 24); g.fill();
-    g.fillStyle = '#1B1E33'; g.font = '700 28px Inter'; g.fillText('3-кезең: белгілеу. Сызықты 60 мм-ге қойыңыз', 100, 305);
-    // Линейка и метка
-    g.fillStyle = '#F7E3BF'; g.fillRect(100, 345, W - 200, 80);
-    g.strokeStyle = '#8B6A3E'; g.lineWidth = 2;
-    for (let mm = 0; mm <= 100; mm += 5) { const x = 120 + mm * ((W - 240) / 100); g.beginPath(); g.moveTo(x, 345); g.lineTo(x, mm % 10 ? 365 : 380); g.stroke(); if (!(mm % 20)) { g.fillStyle = '#8B6A3E'; g.font = '18px Inter'; g.fillText(mm, x - 8, 405); } }
-    const pos = k < 0.55 ? 54 : 60, mx = 120 + pos * ((W - 240) / 100);
-    g.strokeStyle = k < 0.55 ? '#E5484D' : '#2BB673'; g.lineWidth = 5; g.beginPath(); g.moveTo(mx, 335); g.lineTo(mx, 435); g.stroke();
-    const ok = k >= 0.55;
-    g.fillStyle = ok ? '#E3F8EE' : '#FDE8E8'; rr(g, 100, 455, W - 200, 70, 16); g.fill();
-    g.fillStyle = ok ? '#1E8A57' : '#B42318'; g.font = '600 24px Inter';
-    g.fillText(ok ? '✓ Дұрыс! Белгі 60 мм-де.' : '✗ Белгі 54 мм-де. Қажет: 60 ±2 мм. Сызғышты тексеріңіз.', 124, 498);
-    g.fillStyle = '#ECEEF8'; rr(g, 100, 550, 150, 56, 16); g.fill();
-    g.fillStyle = '#6C7BFF'; rr(g, W - 290, 550, 190, 56, 16); g.fill();
-    g.fillStyle = '#5B6080'; g.font = '600 22px Inter'; g.fillText('← Артқа', 128, 586);
-    g.fillStyle = '#fff'; g.fillText('Тексеру', W - 240, 586);
+    bar(g, W, 'ChatGPT'); g.fillStyle = '#FAF7F0'; g.fillRect(0, 60, W, H - 60);
+    const k1 = clamp(k * 2.2), k2 = clamp(k * 1.8 - .8);
+    const h1 = chatBubble(g, W - 760, 100, 680, GPT_ASK, true, k1);
+    if (k2 > 0) { g.fillStyle = C.forest; g.beginPath(); g.arc(80, 140 + h1, 26, 0, 7); g.fill(); chatBubble(g, 120, 120 + h1, W - 220, GPT_ANS, false, k2); }
+    g.fillStyle = '#fff'; rr(g, 60, H - 110, W - 120, 74, 37); g.fill(); g.strokeStyle = '#E4DCCB'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = C.mute; g.font = '500 22px Inter'; g.fillText(k2 >= 1 ? '✓ Промпт дайын — көшіріп, Gemini-ге қойыңыз' : 'Хабарлама жазу…', 100, H - 64);
   } else if (ch === 5) {
-    chrome(g, W, H, 'Блокнот');
-    g.fillStyle = '#fff'; g.fillRect(0, 64, W, H - 64);
-    g.fillStyle = '#C9CCE0'; g.font = '20px "JetBrains Mono"';
-    ['<!doctype html>', '<html lang="kk">', '<head><meta charset="utf-8">', '<title>Телефон тұғыры</title>', '<style> … </style>', '</head><body>', '<script> … </script>'].forEach((l, i) => g.fillText(l, 40, 110 + i * 32));
-    g.fillStyle = 'rgba(14,16,32,.35)'; g.fillRect(0, 64, W, H - 64);
-    g.fillStyle = '#fff'; rr(g, 200, 150, W - 400, 470, 22); g.fill();
-    g.fillStyle = '#1B1E33'; g.font = '800 32px "Inter Tight"'; g.fillText('Басқаша сақтау', 240, 210);
-    const f = [['Файл аты', 'index.html'], ['Файл түрі', 'Барлық файлдар (*.*)'], ['Кодтау', 'UTF-8']];
-    f.forEach(([l, v], i) => {
-      const y = 260 + i * 92, shown = k > i * 0.25 + 0.05;
-      g.fillStyle = '#5B6080'; g.font = '600 20px Inter'; g.fillText(l, 240, y);
-      g.fillStyle = shown ? '#EEF0FF' : '#F3F3F7'; rr(g, 240, y + 12, W - 480, 50, 12); g.fill();
-      if (shown) { g.fillStyle = '#1B1E33'; g.font = '600 24px "JetBrains Mono"'; g.fillText(v, 260, y + 46); }
-    });
-    g.fillStyle = k > 0.8 ? '#47D7A0' : '#6C7BFF'; rr(g, W - 420, 545, 180, 54, 14); g.fill();
-    g.fillStyle = '#fff'; g.font = '700 22px Inter'; g.fillText(k > 0.8 ? 'Сақталды ✓' : 'Сақтау', W - 395, 580);
+    bar(g, W, 'Gemini · Canvas', true); g.fillStyle = '#1F2421'; g.fillRect(0, 60, W, H - 60);
+    g.fillStyle = '#2A302C'; g.fillRect(0, 60, 380, H - 60);
+    spark(g, 60, 110, 22, '#9FB2E0', '#E08A6B');
+    g.fillStyle = '#3A423D'; rr(g, 24, 150, 330, 190, 18); g.fill(); g.fillStyle = '#E6E1D6'; g.font = '500 21px Inter'; wrap(g, 'Промпт қойылды. Жоспар: нұсқаулық, 5 кезең, бағалау. Код жазылуда…', 46, 192, 290, 31);
+    g.fillStyle = C.gold; rr(g, 410, 80, 110, 42, 12); g.fill(); g.fillStyle = C.char; g.font = '600 21px Inter'; g.fillText('Код', 442, 108); g.fillStyle = '#9A9A9A'; g.fillText('Алдын ала қарау', 550, 108);
+    const lines = Math.floor(k * CODE.length);
+    for (let i = 0; i < lines; i++) { const y = 152 + i * 21; if (y > H - 20) break; g.fillStyle = '#5D665F'; g.font = '14px "JetBrains Mono"'; g.fillText(String(i + 1).padStart(2, ' '), 412, y + 9); let x = 460 + CODE[i].ind * 28; for (const t of CODE[i].toks) { g.fillStyle = t.c; rr(g, x, y, t.w, 11, 5); g.fill(); x += t.w + 14; } }
+  } else if (ch === 6) {
+    bar(g, W, 'Алдын ала қарау'); g.fillStyle = C.ivory; g.fillRect(0, 60, W, H - 60);
+    g.fillStyle = C.forest; g.font = '700 34px "Playfair Display"'; g.fillText('Телефон тұғыры', 70, 128);
+    const ok = k >= 0.55;
+    g.fillStyle = '#F3E3E6'; rr(g, W - 250, 96, 180, 44, 22); g.fill(); g.fillStyle = C.burg; g.font = '700 21px Inter'; g.fillText(ok ? 'Ұпай: 8/10' : 'Ұпай: 6/10', W - 220, 126);
+    for (let i = 0; i < 6; i++) { const x = 90 + i * 110, done = i < 2 || (i === 2 && ok); g.fillStyle = done ? C.forest : i === 2 ? C.burg : '#DCD3C3'; g.beginPath(); g.arc(x, 190, 21, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '700 19px Inter'; g.textAlign = 'center'; g.fillText(done ? '✓' : String(i + 1), x, 197); g.textAlign = 'left'; if (i < 5) { g.fillStyle = '#DCD3C3'; g.fillRect(x + 25, 188, 60, 4); } }
+    g.fillStyle = '#fff'; rr(g, 60, 240, W - 120, 390, 24); g.fill();
+    g.fillStyle = C.char; g.font = '700 27px Inter'; g.fillText('3-кезең: белгілеу. Сызықты 60 мм-ге қойыңыз', 100, 295);
+    g.fillStyle = '#EED9B4'; g.fillRect(100, 335, W - 200, 80); g.strokeStyle = '#8B6A3E'; g.lineWidth = 2;
+    for (let mm = 0; mm <= 100; mm += 5) { const x = 120 + mm * ((W - 240) / 100); g.beginPath(); g.moveTo(x, 335); g.lineTo(x, mm % 10 ? 355 : 370); g.stroke(); if (!(mm % 20)) { g.fillStyle = '#8B6A3E'; g.font = '18px Inter'; g.fillText(mm, x - 8, 397); } }
+    const mx = 120 + (ok ? 60 : 54) * ((W - 240) / 100); g.strokeStyle = ok ? '#2E7D57' : '#C0392B'; g.lineWidth = 5; g.beginPath(); g.moveTo(mx, 325); g.lineTo(mx, 425); g.stroke();
+    g.fillStyle = ok ? '#E5F2EA' : '#FBE7E4'; rr(g, 100, 445, W - 200, 70, 16); g.fill();
+    g.fillStyle = ok ? '#1F5E40' : '#9B2C20'; g.font = '600 23px Inter'; g.fillText(ok ? '✓ Дұрыс! Белгі 60 мм-де.' : '✗ Белгі 54 мм-де. Қажет: 60 ±2 мм.', 124, 488);
+    g.fillStyle = C.burg; rr(g, W - 290, 545, 190, 56, 28); g.fill(); g.fillStyle = '#fff'; g.font = '600 22px Inter'; g.fillText('Тексеру', W - 236, 581);
+  } else if (ch === 7) {
+    bar(g, W, 'Блокнот'); g.fillStyle = '#fff'; g.fillRect(0, 60, W, H - 60);
+    g.fillStyle = '#C9C2B4'; g.font = '20px "JetBrains Mono"'; ['<!doctype html>', '<html lang="kk">', '<head><meta charset="utf-8">', '<title>Түстер</title>', '<style> … </style>', '<script> … </script>'].forEach((l, i) => g.fillText(l, 40, 106 + i * 32));
+    g.fillStyle = 'rgba(36,36,36,.28)'; g.fillRect(0, 60, W, H - 60);
+    g.fillStyle = C.paper; rr(g, 200, 140, W - 400, 480, 22); g.fill();
+    g.fillStyle = C.forest; g.font = '700 32px "Playfair Display"'; g.fillText('Басқаша сақтау', 240, 200);
+    [['Файл аты', 'index.html'], ['Файл түрі', 'Барлық файлдар (*.*)'], ['Кодтау', 'UTF-8']].forEach(([l, v], i) => { const y = 252 + i * 92, sh = k > i * .25 + .05; g.fillStyle = C.mute; g.font = '600 20px Inter'; g.fillText(l, 240, y); g.fillStyle = sh ? '#F3ECDF' : '#F5F2EC'; rr(g, 240, y + 12, W - 480, 50, 12); g.fill(); if (sh) { g.fillStyle = C.char; g.font = '600 24px "JetBrains Mono"'; g.fillText(v, 260, y + 46); } });
+    g.fillStyle = k > .8 ? C.forest : C.burg; rr(g, W - 420, 540, 180, 54, 27); g.fill(); g.fillStyle = '#fff'; g.font = '700 22px Inter'; g.fillText(k > .8 ? 'Сақталды ✓' : 'Сақтау', W - 392, 575);
+  } else if (ch === 8) {
+    g.fillStyle = C.forest; g.fillRect(0, 0, W, H);
+    g.fillStyle = C.ivory; g.font = '700 52px "Playfair Display"'; g.fillText('Педагогикалық оқулар', 80, 130);
+    g.fillStyle = C.gold; g.font = 'italic 600 30px "Playfair Display"'; g.fillText('5 минуттық көрсетілім', 80, 180);
+    const st = ['Мәселе', 'Сценарий', 'ChatGPT + Gemini', 'Симулятор', 'Түзету', 'QR-код'], n = Math.ceil(k * st.length);
+    st.forEach((s, i) => { const y = 260 + i * 74, on = i < n; g.fillStyle = on ? C.gold : '#4A5F55'; g.beginPath(); g.arc(100, y, 14, 0, 7); g.fill(); if (i < 5) { g.fillStyle = '#4A5F55'; g.fillRect(98, y + 16, 4, 42); } g.fillStyle = on ? C.ivory : '#7E9087'; g.font = '600 30px Inter'; g.fillText(s, 140, y + 10); });
+    drawQR(g, W - 430, 250, 330, k);
+  } else if (ch === 9) {
+    bar(g, W, 'Түстерді араластыру · index.html'); g.fillStyle = C.ivory; g.fillRect(0, 60, W, H - 60);
+    g.fillStyle = C.forest; g.font = '700 40px "Playfair Display"'; g.fillText('Түстерді араластыру', 70, 140);
+    const blob = (x, c, l) => { g.fillStyle = c || '#E5DED0'; g.beginPath(); g.arc(x, 380, 90, 0, 7); g.fill(); g.fillStyle = C.mute; g.font = '600 24px Inter'; g.textAlign = 'center'; g.fillText(l, x, 510); g.textAlign = 'left'; };
+    blob(220, MIXV.a, 'Бояу 1'); blob(480, MIXV.b, 'Бояу 2');
+    g.fillStyle = C.gold; g.font = '700 70px Inter'; g.fillText('+', 330, 405); g.fillText('=', 600, 405);
+    g.fillStyle = MIXV.result && MIXV.progress > 0 ? MIXV.result : '#E5DED0'; g.globalAlpha = .3 + .7 * (MIXV.progress / 100); g.beginPath(); g.arc(830, 380, 120, 0, 7); g.fill(); g.globalAlpha = 1;
+    g.fillStyle = C.mute; g.font = '600 24px Inter'; g.textAlign = 'center'; g.fillText(`Араласу: ${Math.round(MIXV.progress)}%`, 830, 545); g.textAlign = 'left';
   } else {
-    const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#141833'); gr.addColorStop(1, '#1F2A3A');
-    g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    g.fillStyle = '#fff'; g.font = '800 54px "Inter Tight"'; g.fillText('Педагогикалық оқулар', 80, 140);
-    g.fillStyle = '#A3A9C7'; g.font = '500 28px Inter'; g.fillText('5 минуттық көрсетілім', 80, 190);
-    const steps = ['Мәселе', 'Сценарий', 'Gemini', 'Симулятор', 'Түзету', 'QR-код'];
-    const n = Math.ceil(k * steps.length);
-    steps.forEach((s, i) => {
-      const y = 270 + i * 74, on = i < n;
-      g.fillStyle = on ? '#47D7A0' : '#3A4064'; g.beginPath(); g.arc(100, y, 14, 0, 7); g.fill();
-      if (i < 5) { g.fillStyle = '#3A4064'; g.fillRect(98, y + 16, 4, 42); }
-      g.fillStyle = on ? '#EEF0FA' : '#6B7194'; g.font = '600 30px Inter'; g.fillText(s, 140, y + 10);
-    });
-    drawQR(g, W - 430, 260, 330, k);
+    g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
+    g.fillStyle = C.forest; g.font = '700 44px "Playfair Display"'; g.fillText('Бағалау дескрипторлары', 80, 120);
+    ['Бастапқы түстерді таңдау', 'Араластыруды орындау', 'Алынған түсті анықтау', 'Нәтижені түсіндіру'].forEach((d, i) => { const y = 200 + i * 120, f = clamp(k * 4 - i); g.fillStyle = '#F3ECDF'; rr(g, 80, y, W - 160, 90, 18); g.fill(); g.fillStyle = C.char; g.font = '600 28px Inter'; g.fillText(d, 110, y + 56); g.fillStyle = C.burg; g.font = '700 34px "Playfair Display"'; g.fillText(`${f >= 1 ? 2 : Math.round(f * 2)}/2`, W - 200, y + 58); });
   }
   g.restore();
 }
 
+// ---------- 3D ----------
+function hasWebGL() { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } }
+
+function woodTexture(base = '#B98552', dark = '#8A5A31') {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = base; g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 70; i++) { const y = Math.random() * 256; g.strokeStyle = `rgba(${i % 2 ? '90,55,25' : '230,190,140'},${.08 + Math.random() * .12})`; g.lineWidth = 1 + Math.random() * 3; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 512; x += 32) g.lineTo(x, y + Math.sin(x / 60 + i) * 4); g.stroke(); }
+  g.fillStyle = dark; g.globalAlpha = .25; g.beginPath(); g.ellipse(340, 120, 18, 8, 0, 0, 7); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+function blobShadow() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, 'rgba(60,35,20,.45)'); r.addColorStop(1, 'rgba(60,35,20,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false });
+}
+
 function init() {
+  const low = innerWidth <= 820 || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4 || location.search.includes('lite');
   const canvas = document.getElementById('bg');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !low, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(low ? 1 : Math.min(devicePixelRatio, 1.75));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  if (!low) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0E1020');
-  scene.fog = new THREE.Fog('#0E1020', 10, 26);
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.add(new THREE.HemisphereLight('#8EA0FF', '#1A1020', 0.5));
-  const key = new THREE.DirectionalLight('#ffffff', 1.4); key.position.set(3, 6, 4); scene.add(key);
-  const pl1 = new THREE.PointLight('#6C7BFF', 18, 12); pl1.position.set(-3, 2.5, 2); scene.add(pl1);
-  const pl2 = new THREE.PointLight('#FF8A65', 14, 12); pl2.position.set(3.5, 1.5, 2); scene.add(pl2);
+  scene.background = new THREE.Color(C.ivory); scene.fog = new THREE.Fog(C.ivory, 8, 20);
+  const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.add(new THREE.HemisphereLight('#FFF6E8', '#C9B89A', 0.7));
+  const key = new THREE.DirectionalLight('#FFF1DC', 1.6); key.position.set(4, 8, 5);
+  if (!low) { key.castShadow = true; key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); key.shadow.radius = 6; key.shadow.bias = -0.0005; }
+  scene.add(key);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 60);
+  const shadowMat = blobShadow();
+  const addShadow = (x, z, sx, sz) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), shadowMat); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.012, z); scene.add(m); return m; };
 
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 80);
-
-  // Пол и свечение
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.MeshStandardMaterial({ color: '#12152A', roughness: 0.55, metalness: 0.3 }));
-  floor.rotation.x = -Math.PI / 2; scene.add(floor);
-  const gc = document.createElement('canvas'); gc.width = gc.height = 256;
-  const gg = gc.getContext('2d'); const rg = gg.createRadialGradient(128, 128, 0, 128, 128, 128);
-  rg.addColorStop(0, 'rgba(108,123,255,.55)'); rg.addColorStop(.5, 'rgba(255,138,101,.15)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
-  gg.fillStyle = rg; gg.fillRect(0, 0, 256, 256);
-  const glow = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-  glow.rotation.x = -Math.PI / 2; glow.position.y = 0.01; scene.add(glow);
-  const grid = new THREE.GridHelper(40, 40, '#2A2F55', '#1C2040'); grid.position.y = 0.005; grid.material.transparent = true; grid.material.opacity = 0.35; scene.add(grid);
-
-  // Звёзды
-  const sp = new Float32Array(900 * 3);
-  for (let i = 0; i < 900; i++) { const r = 12 + Math.random() * 14, a = Math.random() * Math.PI * 2, y = Math.random() * 14 + 1; sp.set([Math.cos(a) * r, y, Math.sin(a) * r], i * 3); }
-  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-  const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: '#C6CCFF', size: 0.05, transparent: true, opacity: 0.8 }));
-  scene.add(stars);
+  // Стол мастерской
+  const wt = woodTexture('#C99A68', '#8A5A31'); wt.repeat.set(12, 9);
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(70, 50), new THREE.MeshStandardMaterial({ map: wt, roughness: 0.7 }));
+  table.rotation.x = -Math.PI / 2; table.receiveShadow = true; scene.add(table);
 
   // Ноутбук
   const laptop = new THREE.Group(); scene.add(laptop);
-  const metal = new THREE.MeshStandardMaterial({ color: '#2A2F45', metalness: 0.7, roughness: 0.32 });
-  const base = new THREE.Mesh(new RoundedBoxGeometry(3.2, 0.14, 2.1, 4, 0.06), metal); base.position.y = 0.07; laptop.add(base);
-  const kb = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.1), new THREE.MeshStandardMaterial({ color: '#161929', roughness: 0.8 }));
-  kb.rotation.x = -Math.PI / 2; kb.position.set(0, 0.142, -0.25); laptop.add(kb);
-  const pad = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.55), new THREE.MeshStandardMaterial({ color: '#232842', roughness: 0.5 }));
-  pad.rotation.x = -Math.PI / 2; pad.position.set(0, 0.142, 0.65); laptop.add(pad);
+  const shell = new THREE.MeshStandardMaterial({ color: '#D9CBB2', metalness: 0.6, roughness: 0.35 });
+  const base = new THREE.Mesh(new RoundedBoxGeometry(3.2, 0.14, 2.1, 4, 0.06), shell); base.position.y = 0.07; base.castShadow = true; laptop.add(base);
+  const kb = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.1), new THREE.MeshStandardMaterial({ color: '#3A3632', roughness: 0.8 })); kb.rotation.x = -Math.PI / 2; kb.position.set(0, 0.142, -0.25); laptop.add(kb);
   const hinge = new THREE.Group(); hinge.position.set(0, 0.14, -1.03); laptop.add(hinge);
-  const lid = new THREE.Mesh(new RoundedBoxGeometry(3.2, 2.05, 0.08, 4, 0.04), metal); lid.position.y = 1.025; hinge.add(lid);
-  const SW = 1280, SH = 800;
-  const sc = document.createElement('canvas'); sc.width = SW; sc.height = SH;
-  const sctx = sc.getContext('2d');
-  const stex = new THREE.CanvasTexture(sc); stex.colorSpace = THREE.SRGBColorSpace; stex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.875), new THREE.MeshBasicMaterial({ map: stex, toneMapped: false }));
-  screen.position.set(0, 1.025, 0.042); hinge.add(screen);
+  const lid = new THREE.Mesh(new RoundedBoxGeometry(3.2, 2.05, 0.08, 4, 0.04), shell); lid.position.y = 1.025; lid.castShadow = true; hinge.add(lid);
+  const SW = 1280, SH = 800, sc = document.createElement('canvas'); sc.width = SW; sc.height = SH; const sctx = sc.getContext('2d');
+  const stex = new THREE.CanvasTexture(sc); stex.colorSpace = THREE.SRGBColorSpace; stex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.875), new THREE.MeshBasicMaterial({ map: stex, toneMapped: false })); screen.position.set(0, 1.025, 0.042); hinge.add(screen);
+  addShadow(0, 0, 4.4, 3.2);
 
-  // Спутники по главам
-  const sats = [];
-  // Спутники держатся в свободной половине кадра: ndc (компьютер), mndc (телефон), depth от камеры
-  const addSat = (obj, ch, ndc, mndc, depth, extra = {}) => { scene.add(obj); sats.push({ obj, ch, ndc, mndc, depth, phase: Math.random() * 6, spin: 0, tilt: [0, 0, 0], ...extra }); return obj; };
-
-  // 1: лист сценария и карандаш
-  const pc = document.createElement('canvas'); pc.width = 512; pc.height = 660;
-  const pg = pc.getContext('2d');
-  const drawPaper = () => {
-    pg.fillStyle = '#FBFAF6'; pg.fillRect(0, 0, 512, 660);
-    pg.fillStyle = '#1B1E33'; pg.font = '800 34px "Inter Tight"'; pg.fillText('Сценарий', 40, 70);
-    pg.font = '500 22px Inter';
-    SCEN.forEach((r, i) => { pg.fillStyle = '#6C7BFF'; pg.fillText(r[0], 40, 130 + i * 70); pg.fillStyle = '#5B6080'; pg.fillText('✓ ' + r[1], 60, 160 + i * 70); });
-    pg.strokeStyle = '#E2E0D6'; for (let y = 100; y < 640; y += 35) { pg.beginPath(); pg.moveTo(30, y); pg.lineTo(482, y); pg.stroke(); }
-  };
-  drawPaper();
-  const ptex = new THREE.CanvasTexture(pc); ptex.colorSpace = THREE.SRGBColorSpace;
-  const paper = new THREE.Group();
-  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.06), new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.9, side: THREE.DoubleSide }));
-  paper.add(sheet);
-  const pencil = new THREE.Group();
-  const pb = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 6), new THREE.MeshStandardMaterial({ color: '#F7C66B', roughness: 0.5 }));
-  const pt = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 6), new THREE.MeshStandardMaterial({ color: '#E8C9A0' })); pt.position.y = -0.74;
-  pencil.add(pb, pt); pencil.rotation.z = 0.7; pencil.position.set(0.75, -0.6, 0.12); paper.add(pencil);
-  
-  addSat(paper, 1, [0.7, 0.05], [0.62, 0.62], 4.2, { size: .55, tilt: [-0.15, -0.5, -0.06], spin: .2 });
-
-  // 2: звезда-искра (общий знак ИИ, не логотип)
-  const shape = new THREE.Shape();
-  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + Math.PI / 2, r = i % 2 ? 0.13 : 0.55; const x = Math.cos(a) * r, y = Math.sin(a) * r; i ? shape.lineTo(x, y) : shape.moveTo(x, y); }
-  const starGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.04, bevelSegments: 3 }); starGeo.center();
-  const spark = new THREE.Mesh(starGeo, new THREE.MeshPhysicalMaterial({ color: '#8EA0FF', emissive: '#4B3CFF', emissiveIntensity: 0.6, metalness: 0.3, roughness: 0.2, clearcoat: 1 }));
-  addSat(spark, 2, [-0.8, 0.55], [-0.65, 0.78], 4.2, { size: .5, spin: 1 });
-
-  // 3: блоки кода, влетающие в экран
-  const CN = 36;
-  const blocks = new THREE.InstancedMesh(new RoundedBoxGeometry(0.42, 0.1, 0.1, 2, 0.04), new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.1 }), CN);
-  const bStart = [], bEnd = [], tmpM = new THREE.Matrix4(), tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3();
-  const pal = ['#FF8A65', '#8EA0FF', '#47D7A0', '#F7C66B', '#E6E8F5'].map(c => new THREE.Color(c));
-  for (let i = 0; i < CN; i++) {
-    const a = Math.random() * Math.PI * 2, r = 2.6 + Math.random() * 1.6;
-    bStart.push(new THREE.Vector3(Math.cos(a) * r, 0.6 + Math.random() * 2.8, Math.sin(a) * r * 0.6 + 1.2));
-    bEnd.push(new THREE.Vector3(-1.05 + (i % 4) * 0.48 + ((i * 13) % 3) * 0.06, 1.95 - Math.floor(i / 4) * 0.17, 0.12));
-    blocks.setColorAt(i, pal[i % pal.length]);
+  // Палитра художника
+  function makePalette(colors) {
+    const s = new THREE.Shape(); s.absellipse(0, 0, 0.95, 0.68, 0, Math.PI * 2, false, 0);
+    const hole = new THREE.Path(); hole.absellipse(-0.55, -0.22, 0.12, 0.09, 0, Math.PI * 2, true, 0); s.holes.push(hole);
+    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.02, bevelSegments: 2, curveSegments: low ? 24 : 48 });
+    const pal = new THREE.Group();
+    const board = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: woodTexture('#D8B07E', '#9C6B3C'), roughness: 0.55 })); board.rotation.x = -Math.PI / 2; board.castShadow = true; pal.add(board);
+    const blobs = colors.map((c, i) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 12), new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.25, clearcoat: 0.8 }));
+      const a = -0.2 + i * (Math.PI * 1.15 / Math.max(1, colors.length - 1)); m.position.set(Math.cos(a) * 0.62 + 0.05, 0.06, -Math.sin(a) * 0.42); m.scale.set(1, 0.38, 1); pal.add(m); return m;
+    });
+    return { pal, blobs };
   }
+  // Кисть
+  function makeBrush(handle = C.burg, tip = '#E8792F', len = 1.3) {
+    const b = new THREE.Group();
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, len, 16), new THREE.MeshPhysicalMaterial({ color: handle, roughness: 0.3, clearcoat: 1 })); h.position.y = -len / 2; b.add(h);
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.18, 16), new THREE.MeshStandardMaterial({ color: '#CFC6B8', metalness: 1, roughness: 0.25 })); f.position.y = 0.09; b.add(f);
+    const t = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.2, 16), new THREE.MeshStandardMaterial({ color: tip, roughness: 0.8 })); t.position.y = 0.28; b.add(t);
+    b.traverse(o => { if (o.isMesh) o.castShadow = true; }); return b;
+  }
+
+  // Предметы на столе: заготовка и кисти (сцена «проблема»)
+  const blank = new THREE.Mesh(new RoundedBoxGeometry(1.7, 0.18, 0.62, 3, 0.03), new THREE.MeshStandardMaterial({ map: woodTexture('#E2C394', '#A9784A'), roughness: 0.6 }));
+  blank.position.set(-2.5, 0.09, 0.7); blank.rotation.y = 0.35; blank.castShadow = true; scene.add(blank); addShadow(-2.5, 0.75, 2.2, 1.1);
+  const tb1 = makeBrush(C.forest, '#2F5DA8', 1.2); tb1.rotation.set(0, 0.6, Math.PI / 2); tb1.position.set(-2.2, 0.05, 1.55); scene.add(tb1);
+  const tb2 = makeBrush(C.burg, '#F2C230', 1.1); tb2.rotation.set(0, -0.2, Math.PI / 2); tb2.position.set(-1.6, 0.05, 1.85); scene.add(tb2);
+
+  // Рабочее место симулятора: палитра + изделие (разделочная доска с орнаментом)
+  const station = new THREE.Group(); station.position.set(2.7, 0, 1.0); scene.add(station);
+  const simPal = makePalette(['#C8323A', '#F2C230']); simPal.pal.position.set(-0.55, 0.03, 0.35); simPal.pal.rotation.y = 0.25; station.add(simPal.pal);
+  const well = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 32), new THREE.MeshPhysicalMaterial({ color: '#E5DED0', roughness: 0.3, clearcoat: 0.7 }));
+  well.position.set(-0.1, 0.07, 0.05); simPal.pal.add(well);
+  addShadow(2.15, 1.35, 2.4, 1.8);
+  const product = new THREE.Group(); product.position.set(0.75, 0.06, -0.45); station.add(product);
+  {
+    const s = new THREE.Shape(); s.moveTo(-0.6, -0.4); s.lineTo(0.45, -0.4); s.quadraticCurveTo(0.6, -0.4, 0.6, -0.25); s.lineTo(0.6, -0.12); s.lineTo(0.95, -0.1); s.quadraticCurveTo(1.05, 0, 0.95, 0.1); s.lineTo(0.6, 0.12); s.lineTo(0.6, 0.25); s.quadraticCurveTo(0.6, 0.4, 0.45, 0.4); s.lineTo(-0.45, 0.4); s.quadraticCurveTo(-0.6, 0.4, -0.6, 0.25); s.lineTo(-0.6, -0.4);
+    const hole = new THREE.Path(); hole.absarc(0.86, 0, 0.04, 0, Math.PI * 2, true); s.holes.push(hole);
+    const board = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2 }), new THREE.MeshStandardMaterial({ map: woodTexture('#D9AE78', '#9C6B3C'), roughness: 0.55 }));
+    board.rotation.x = -Math.PI / 2; board.castShadow = true; product.add(board);
+  }
+  const ornMat = new THREE.MeshPhysicalMaterial({ color: '#E5DED0', roughness: 0.35, clearcoat: 0.6 });
+  const orn = new THREE.Group(); orn.position.set(-0.05, 0.095, 0); product.add(orn);
+  for (let i = 0; i < 6; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 10), ornMat); const a = i * Math.PI / 3; p.position.set(Math.cos(a) * 0.15, 0, Math.sin(a) * 0.15); p.scale.set(1.25, 0.12, 0.62); p.rotation.y = -a; orn.add(p); }
+  orn.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 20), new THREE.MeshStandardMaterial({ color: C.gold, metalness: 0.6, roughness: 0.3 })));
+  addShadow(3.5, 0.6, 2.2, 1.3);
+
+  let lastKey = '';
+  // Связь с симулятором
+  const colA = new THREE.Color(), colR = new THREE.Color(), base0 = new THREE.Color('#E5DED0');
+  addEventListener('colormix', e => {
+    const d = e.detail; MIXV = { ...MIXV, ...d };
+    if (d.a) simPal.blobs[0].material.color.set(d.a);
+    if (d.b) simPal.blobs[1].material.color.set(d.b);
+    colA.set(d.a || '#E5DED0'); colR.set(d.result || '#E5DED0');
+    well.material.color.copy(colA).lerp(colR, clamp(d.progress / 100));
+    ornMat.color.copy(d.done && d.result ? colR : base0); lastKey = '';
+  });
+
+  // Спутники в свободной половине кадра (ndc для компьютера, mndc для телефона)
+  const sats = [];
+  const addSat = (obj, ch, ndc, mndc, depth, extra = {}) => { scene.add(obj); sats.push({ obj, ch, ndc, mndc, depth, phase: Math.random() * 6, spin: 0, tilt: [0, 0, 0], size: 1, ...extra }); return obj; };
+  // Hero: вращающаяся палитра и кисти рядом с портретом
+  const heroPal = makePalette(['#C8323A', '#E8792F', '#F2C230', '#4E9A47', '#2F5DA8', '#6E3E8E']);
+  addSat(heroPal.pal, 0, [0.14, -0.66], null, 4.4, { tilt: [1.0, 0, 0.2], spin: 1, size: 0.42, turn: true });
+  addSat(makeBrush(C.burg, '#E8792F'), 0, [-0.05, 0.62], null, 4.6, { tilt: [0, 0, -0.5], spin: 0.4, size: 0.45 });
+  addSat(makeBrush(C.forest, '#2F5DA8', 1.1), 0, [0.94, -0.5], null, 4.6, { tilt: [0, 0, 0.6], spin: 0.4, size: 0.45 });
+  // 01: лист сценария
+  const pc = document.createElement('canvas'); pc.width = 512; pc.height = 660; const pg = pc.getContext('2d');
+  const drawPaper = () => { pg.fillStyle = '#FFFDF8'; pg.fillRect(0, 0, 512, 660); pg.fillStyle = C.forest; pg.font = '700 36px "Playfair Display"'; pg.fillText('Сценарий', 40, 72); pg.font = '500 22px Inter'; SCEN.forEach((r, i) => { pg.fillStyle = C.burg; pg.fillText(r[0], 40, 130 + i * 70); pg.fillStyle = C.mute; pg.fillText('✓ ' + r[1], 60, 160 + i * 70); }); pg.strokeStyle = '#EAE2D2'; for (let y = 100; y < 640; y += 35) { pg.beginPath(); pg.moveTo(30, y); pg.lineTo(482, y); pg.stroke(); } };
+  drawPaper(); const ptex = new THREE.CanvasTexture(pc); ptex.colorSpace = THREE.SRGBColorSpace;
+  const paper = new THREE.Group(); paper.add(new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.06), new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.9, side: THREE.DoubleSide })));
+  const pen = makeBrush('#3A3632', '#242424', 1.1); pen.rotation.z = 0.7; pen.position.set(0.7, -0.5, 0.1); paper.add(pen);
+  addSat(paper, 3, [0.7, 0.05], [0.6, 0.6], 4.2, { tilt: [-0.15, -0.5, -0.06], spin: .2, size: .55 });
+  // 04: жетоны проверки
+  const mkToken = ok => { const t = new THREE.Group(); const d = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 40), new THREE.MeshStandardMaterial({ color: ok ? C.forest : C.burg, roughness: 0.3, metalness: 0.2 })); d.rotation.x = Math.PI / 2; t.add(d); const m = new THREE.MeshStandardMaterial({ color: C.ivory });
+    if (ok) { const a = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.05), m); a.position.set(-0.07, -0.02, 0.06); a.rotation.z = 0.8; const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.36, 0.05), m); b.position.set(0.07, 0.04, 0.06); b.rotation.z = -0.65; t.add(a, b); }
+    else [0.78, -0.78].forEach(z => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.05), m); b.position.z = 0.06; b.rotation.z = z; t.add(b); }); return t; };
+  addSat(mkToken(true), 6, [-0.86, 0.55], [-0.72, 0.84], 4.2, { spin: .4, size: .5 });
+  addSat(mkToken(true), 6, [-0.9, 0.08], [0.72, 0.84], 4.2, { spin: .4, size: .5 });
+  addSat(mkToken(false), 6, [-0.85, -0.4], [0.75, 0.42], 4.2, { spin: .4, size: .5 });
+  // 05: карточка файла
+  const fc = document.createElement('canvas'); fc.width = 360; fc.height = 460; const fg = fc.getContext('2d');
+  const drawFile = () => { fg.fillStyle = C.paper; fg.fillRect(0, 0, 360, 460); fg.fillStyle = C.burg; rr(fg, 40, 40, 280, 240, 24); fg.fill(); fg.fillStyle = '#fff'; fg.font = '700 80px "JetBrains Mono"'; fg.textAlign = 'center'; fg.fillText('</>', 180, 190); fg.fillStyle = C.forest; fg.font = '700 40px "JetBrains Mono"'; fg.fillText('index.html', 180, 350); fg.fillStyle = C.mute; fg.font = '500 24px Inter'; fg.fillText('UTF-8 · 1 файл', 180, 400); };
+  drawFile(); const ftex = new THREE.CanvasTexture(fc); ftex.colorSpace = THREE.SRGBColorSpace;
+  const fm = new THREE.MeshStandardMaterial({ color: C.paper, roughness: 0.6 });
+  addSat(new THREE.Mesh(new RoundedBoxGeometry(1.2, 1.53, 0.08, 3, 0.04), [fm, fm, fm, fm, new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.6 }), fm]), 7, [0.72, 0.08], [0.62, 0.62], 4.2, { spin: .25, size: .55 });
+
+  // 03: блоки кода влетают в экран
+  const CN = low ? 20 : 36;
+  const blocks = new THREE.InstancedMesh(new RoundedBoxGeometry(0.42, 0.1, 0.1, 2, 0.04), new THREE.MeshStandardMaterial({ roughness: 0.4 }), CN);
+  const bStart = [], bEnd = [], M = new THREE.Matrix4(), V = new THREE.Vector3(), Q = new THREE.Quaternion(), Sv = new THREE.Vector3();
+  const pal5 = ['#722F3E', '#C6A675', '#273F36', '#E8792F', '#2F5DA8'].map(c => new THREE.Color(c));
+  for (let i = 0; i < CN; i++) { const a = Math.random() * Math.PI * 2, r = 2.6 + Math.random() * 1.6; bStart.push(new THREE.Vector3(Math.cos(a) * r, 0.6 + Math.random() * 2.8, Math.sin(a) * r * 0.6 + 1.2)); bEnd.push(new THREE.Vector3(-1.05 + (i % 4) * 0.48, 1.95 - Math.floor(i / 4) * 0.17, 0.12)); blocks.setColorAt(i, pal5[i % 5]); }
   blocks.frustumCulled = false; scene.add(blocks);
-
-  // 4: жетоны проверки
-  const mkToken = (ok) => {
-    const t = new THREE.Group();
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 40), new THREE.MeshStandardMaterial({ color: ok ? '#2BB673' : '#E5484D', roughness: 0.3, metalness: 0.2 }));
-    disc.rotation.x = Math.PI / 2; t.add(disc);
-    const m = new THREE.MeshStandardMaterial({ color: '#fff', roughness: 0.4 });
-    if (ok) {
-      const a = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.05), m); a.position.set(-0.07, -0.02, 0.06); a.rotation.z = 0.8;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.36, 0.05), m); b.position.set(0.07, 0.04, 0.06); b.rotation.z = -0.65; t.add(a, b);
-    } else {
-      [0.78, -0.78].forEach(z => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.05), m); b.position.z = 0.06; b.rotation.z = z; t.add(b); });
-    }
-    return t;
-  };
-  addSat(mkToken(true), 4, [-0.86, 0.55], [-0.72, 0.84], 4.2, { size: .5, spin: .4 });
-  addSat(mkToken(true), 4, [-0.9, 0.08], [0.72, 0.84], 4.2, { size: .5, spin: .4 });
-  addSat(mkToken(false), 4, [-0.85, -0.4], [0.75, 0.42], 4.2, { size: .5, spin: .4 });
-
-  // 5: карточка файла index.html
-  const fc = document.createElement('canvas'); fc.width = 360; fc.height = 460;
-  const fg = fc.getContext('2d');
-  const drawFile = () => {
-    fg.fillStyle = '#F3F2F8'; fg.fillRect(0, 0, 360, 460);
-    fg.fillStyle = '#FF8A65'; rr(fg, 40, 40, 280, 240, 24); fg.fill();
-    fg.fillStyle = '#fff'; fg.font = '700 80px "JetBrains Mono"'; fg.textAlign = 'center'; fg.fillText('</>', 180, 190);
-    fg.fillStyle = '#1B1E33'; fg.font = '700 40px "JetBrains Mono"'; fg.fillText('index.html', 180, 350);
-    fg.fillStyle = '#5B6080'; fg.font = '500 24px Inter'; fg.fillText('UTF-8 · 1 файл', 180, 400);
-  };
-  drawFile();
-  const ftex = new THREE.CanvasTexture(fc); ftex.colorSpace = THREE.SRGBColorSpace;
-  const fileMat = new THREE.MeshStandardMaterial({ color: '#F3F2F8', roughness: 0.6 });
-  const file = new THREE.Mesh(new RoundedBoxGeometry(1.2, 1.53, 0.08, 3, 0.04), [fileMat, fileMat, fileMat, fileMat, new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.6 }), fileMat]);
-  addSat(file, 5, [0.72, 0.08], [0.62, 0.62], 4.2, { size: .55, spin: .25 });
-
-  // 6: QR из кубиков
-  const qOn = QR.map((v, i) => v ? i : -1).filter(i => i >= 0);
-  const qr = new THREE.InstancedMesh(new THREE.BoxGeometry(0.085, 0.085, 0.085), new THREE.MeshStandardMaterial({ color: '#EEF0FA', roughness: 0.4 }), qOn.length);
+  // 06: QR из кубиков
+  const qOn = QR.map((v, i) => (v ? i : -1)).filter(i => i >= 0);
+  const qr = new THREE.InstancedMesh(new THREE.BoxGeometry(0.085, 0.085, 0.085), new THREE.MeshStandardMaterial({ color: C.forest, roughness: 0.5 }), qOn.length);
   const qStart = qOn.map(() => new THREE.Vector3((Math.random() - .5) * 6, Math.random() * 4, (Math.random() - .5) * 4));
   const qEnd = qOn.map(i => new THREE.Vector3(((i % QN) - QN / 2) * 0.09 - 2.6, 2.5 - Math.floor(i / QN) * 0.09, 0.6));
   qr.frustumCulled = false; scene.add(qr);
 
-  // Ключи камеры: [позиция, цель] на каждую главу
+  // Ключи камеры по сценам: [позиция, цель]
   const KEYS = [
-    [[0.4, 2.7, 7.4], [0, 1.0, 0]],
-    [[2.4, 2.5, 5.8], [1.1, 1.2, 0.3]],
-    [[-1.9, 2.3, 5.0], [-0.7, 1.4, 0]],
-    [[0.3, 1.7, 3.9], [0, 1.1, 0]],
+    [[0.8, 3.4, 9.0], [0.2, 0.9, 0]],
+    [[-1.2, 2.3, 4.8], [-2.1, 0.4, 0.9]],
+    [[1.2, 2.4, 5.6], [0.3, 1.1, 0]],
+    [[-0.3, 2.4, 5.4], [0, 1.1, 0]],
+    [[0.5, 1.7, 3.9], [0, 1.1, 0]],
+    [[-0.3, 1.7, 3.9], [0, 1.1, 0]],
     [[-0.6, 1.8, 4.8], [-0.4, 1.2, 0.2]],
-    [[2.6, 2.2, 5.4], [1.2, 1.3, 0.4]],
-    [[-3.2, 3.2, 6.8], [-0.9, 1.4, 0]],
+    [[2.0, 2.2, 5.4], [0.8, 1.2, 0.3]],
+    [[-2.8, 3.0, 6.6], [-0.7, 1.3, 0]],
+    [[1.9, 3.1, 5.6], [2.6, 0.2, 0.9]],
+    [[3.6, 1.6, 3.5], [3.1, 0.35, 0.6]],
   ].map(([p, t]) => [new THREE.Vector3(...p), new THREE.Vector3(...t)]);
   const sides = sections.map(s => (s.dataset.side === 'r' ? 1 : -1));
 
   let W = 0, H = 0, mobile = false;
-  function resize() {
-    W = innerWidth; H = innerHeight; mobile = W <= 820;
-    renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
-  }
+  function resize() { W = innerWidth; H = innerHeight; mobile = W <= 820; renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); }
   addEventListener('resize', resize); resize();
-
   const mouse = { x: 0, y: 0 };
-  addEventListener('pointermove', e => { mouse.x = e.clientX / W - 0.5; mouse.y = e.clientY / H - 0.5; }, { passive: true });
+  addEventListener('pointermove', e => { mouse.x = e.clientX / W - .5; mouse.y = e.clientY / H - .5; }, { passive: true });
 
-  let tTarget = scrollT(), tS = tTarget, lastKey = '';
+  // Вращение изделия на сцене симулятора (мышь и касание)
+  const stage = document.getElementById('simStage'); let spinY = 0, spinV = 0, drag = null;
+  stage.addEventListener('pointerdown', e => { drag = e.clientX; stage.setPointerCapture(e.pointerId); });
+  stage.addEventListener('pointermove', e => { if (drag === null) return; const d = (e.clientX - drag) / 120; spinY += d; spinV = d; drag = e.clientX; });
+  ['pointerup', 'pointercancel'].forEach(ev => stage.addEventListener(ev, () => (drag = null)));
+
+  let tTarget = scrollT(), tS = tTarget, instant = false, offX = sides[0] * 0.2;
   addEventListener('scroll', () => { tTarget = scrollT(); }, { passive: true });
-  const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
-  fontsReady.then(() => { drawPaper(); ptex.needsUpdate = true; drawFile(); ftex.needsUpdate = true; lastKey = ''; });
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { drawPaper(); ptex.needsUpdate = true; drawFile(); ftex.needsUpdate = true; lastKey = ''; });
+  const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(); const clock = new THREE.Clock(); const t0 = performance.now();
 
-  const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3();
-  const clock = new THREE.Clock(); const t0 = performance.now();
-  let offX = sides[0] * 0.17;
-
-  let instant = false;
-  function frame() {
-    requestAnimationFrame(frame);
-    if (document.hidden) return;
-    update();
-  }
   function update() {
     const time = clock.getElapsedTime();
     tS += (tTarget - tS) * (reduce || instant ? 1 : 0.07);
-    ui(tTarget);
-
-    // Камера
     const i0 = Math.floor(clamp(tS, 0, KEYS.length - 1)), i1 = Math.min(i0 + 1, KEYS.length - 1), f = smooth(clamp(tS - i0));
     camPos.lerpVectors(KEYS[i0][0], KEYS[i1][0], f); camTgt.lerpVectors(KEYS[i0][1], KEYS[i1][1], f);
     const asp = W / H, dist = mobile ? Math.min(1.9, Math.max(1, 1.25 / asp)) : clamp(1.6 / asp, 1, 1.3);
     camPos.sub(camTgt).multiplyScalar(dist).add(camTgt);
-    if (!reduce) { camPos.x += mouse.x * 0.5; camPos.y -= mouse.y * 0.3; }
+    if (!reduce) { camPos.x += mouse.x * 0.35; camPos.y -= mouse.y * 0.2; }
     camera.position.copy(camPos); camera.lookAt(camTgt);
-    // Сдвиг кадра: объект напротив карточки
     const side = sides[i0] + (sides[i1] - sides[i0]) * f;
     const wantX = mobile ? 0 : side * (W < 1200 ? 0.26 : 0.21);
     offX += (wantX - offX) * (reduce || instant ? 1 : 0.08);
     if (mobile) camera.setViewOffset(W, H, 0, H * 0.2, W, H); else camera.setViewOffset(W, H, offX * W, 0, W, H);
     camera.updateMatrixWorld();
 
-    // Крышка ноутбука открывается при загрузке
     const open = reduce ? 1 : smooth(clamp((performance.now() - t0) / 1800));
     hinge.rotation.x = Math.PI / 2 * (1 - open) - 0.18 * open;
 
-    // Экран
-    const ch = clamp(Math.round(tS), 0, 6);
-    const k = reduce ? 1 : clamp((tS - ch + 0.5) / 0.65);
+    const ch = clamp(Math.round(tS), 0, 10), k = reduce ? 1 : clamp((tS - ch + 0.5) / 0.65);
     const keyS = ch + ':' + Math.round(k * 40);
     if (keyS !== lastKey) { lastKey = keyS; drawScreen(sctx, SW, SH, ch, k); stex.needsUpdate = true; }
 
-    // Веса глав
     const w = i => smooth(clamp(1 - Math.abs(tS - i) * 1.25));
     sats.forEach(s => {
-      const wt = w(s.ch);
-      s.obj.visible = wt > 0.01; if (!s.obj.visible) return;
-      s.obj.scale.setScalar(Math.max(wt * (s.size || 1), 0.0001));
       const n = mobile ? s.mndc : s.ndc;
-      tmpV.set(n[0], n[1] + (reduce ? 0 : Math.sin(time * 1.2 + s.phase) * 0.02) - (1 - wt) * 0.3, 0.5).unproject(camera).sub(camera.position).normalize();
-      s.obj.position.copy(camera.position).addScaledVector(tmpV, s.depth);
+      const wt = n ? w(s.ch) : 0; s.obj.visible = wt > 0.01; if (!s.obj.visible) return;
+      s.obj.scale.setScalar(Math.max(wt * s.size, 0.0001));
+      V.set(n[0], n[1] + (reduce ? 0 : Math.sin(time * 1.2 + s.phase) * 0.02) - (1 - wt) * 0.3, 0.5).unproject(camera).sub(camera.position).normalize();
+      s.obj.position.copy(camera.position).addScaledVector(V, s.depth);
       s.obj.quaternion.copy(camera.quaternion);
-      s.obj.rotateX(s.tilt[0]); s.obj.rotateY(s.tilt[1] + (reduce ? 0 : Math.sin(time * 0.6 + s.phase) * 0.5 * s.spin + (s.ch === 2 ? time * 0.6 : 0))); s.obj.rotateZ(s.tilt[2]);
+      s.obj.rotateX(s.tilt[0]); s.obj.rotateY(s.tilt[1] + (reduce ? 0 : Math.sin(time * 0.6 + s.phase) * 0.5 * s.spin + (s.turn ? time * 0.35 : 0))); s.obj.rotateZ(s.tilt[2]);
     });
-    const w3 = w(3);
-    for (let i = 0; i < CN; i++) {
-      const pi = smooth(clamp(w3 * 1.5 - (i / CN) * 0.5));
-      tmpV.lerpVectors(bStart[i], bEnd[i], pi);
-      tmpS.setScalar(Math.max(w3, 0.0001)); tmpQ.identity();
-      tmpM.compose(tmpV, tmpQ, tmpS); blocks.setMatrixAt(i, tmpM);
-    }
-    blocks.instanceMatrix.needsUpdate = true; blocks.visible = w3 > 0.01;
-    const w6 = w(6);
-    for (let i = 0; i < qOn.length; i++) {
-      const pi = smooth(clamp(w6 * 1.4 - (i / qOn.length) * 0.4));
-      tmpV.lerpVectors(qStart[i], qEnd[i], pi);
-      tmpS.setScalar(Math.max(pi, 0.0001)); tmpQ.identity();
-      tmpM.compose(tmpV, tmpQ, tmpS); qr.setMatrixAt(i, tmpM);
-    }
-    qr.instanceMatrix.needsUpdate = true; qr.visible = w6 > 0.01;
+    const w5 = w(5);
+    for (let i = 0; i < CN; i++) { const pi = smooth(clamp(w5 * 1.5 - (i / CN) * 0.5)); V.lerpVectors(bStart[i], bEnd[i], pi); Sv.setScalar(Math.max(w5, 0.0001)); Q.identity(); M.compose(V, Q, Sv); blocks.setMatrixAt(i, M); }
+    blocks.instanceMatrix.needsUpdate = true; blocks.visible = w5 > 0.01;
+    const w8 = w(8);
+    for (let i = 0; i < qOn.length; i++) { const pi = smooth(clamp(w8 * 1.4 - (i / qOn.length) * 0.4)); V.lerpVectors(qStart[i], qEnd[i], pi); Sv.setScalar(Math.max(pi, 0.0001)); Q.identity(); M.compose(V, Q, Sv); qr.setMatrixAt(i, M); }
+    qr.instanceMatrix.needsUpdate = true; qr.visible = w8 > 0.01;
 
-    if (!reduce) { stars.rotation.y = time * 0.01; laptop.rotation.y = Math.sin(time * 0.3) * 0.04; }
+    // Изделие: инерция вращения, на сцене результата — медленный показ
+    if (drag === null) { spinV *= 0.94; spinY += spinV; if (!reduce) spinY += w(10) * 0.004; }
+    product.rotation.y = spinY; simPal.pal.rotation.y = 0.25 + spinY * 0.25;
+    product.position.y = 0.06 + w(10) * 0.25; product.rotation.x = -w(10) * 0.35;
     renderer.render(scene, camera);
   }
+  function frame() { requestAnimationFrame(frame); if (!document.hidden) update(); }
   frame();
-  // Для отладки: мгновенно применить текущую прокрутку
-  window.__guide = { scene, camera, sats, THREE, step() { instant = true; tTarget = scrollT(); update(); instant = false; } };
+  window.__atelier = { scene, camera, sats, step() { instant = true; tTarget = scrollT(); update(); instant = false; } };
 }
 
-// Запуск после объявления всех констант
-if (!hasWebGL() || location.search.includes('static')) {
-  document.documentElement.classList.add('no-webgl');
-  addEventListener('scroll', () => ui(scrollT()), { passive: true }); ui(0);
-} else {
-  init();
+// Запуск
+function start() {
+  initGsap();
+  if (!hasWebGL() || location.search.includes('static')) document.documentElement.classList.add('no-webgl');
+  else init();
 }
+if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });

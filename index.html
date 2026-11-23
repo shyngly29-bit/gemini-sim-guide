@@ -4,52 +4,101 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Сабақ симуляторын Gemini-мен жасау</title>
-<meta name="description" content="Көркем еңбек мұғаліміне нұсқаулық: Gemini Canvas арқылы сабаққа арналған HTML-симуляторды кезең-кезеңімен жасау, тексеру, сақтау және таратау.">
-<meta name="theme-color" content="#0E1020">
+<meta name="description" content="Көркем еңбек мұғаліміне нұсқаулық: ChatGPT-да промпт жазып, Gemini Canvas арқылы сабаққа арналған HTML-симулятор жасау. Түстерді араластыру симуляторының жұмыс істейтін демо нұсқасы.">
+<meta name="theme-color" content="#F7F3EB">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=3">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=5">
+<script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js-anim')</script>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
 </head>
 <body>
+<a class="skip" href="#problem">Мазмұнға өту</a>
 <canvas id="bg" aria-hidden="true"></canvas>
-<div class="bar" aria-hidden="true"><i id="barFill"></i></div>
 
-<nav class="dots" aria-label="Бөлімдер">
-  <a href="#s0" data-i="0"><span>Басы</span></a>
-  <a href="#s1" data-i="1"><span>Дайындық</span></a>
-  <a href="#s2" data-i="2"><span>Gemini</span></a>
-  <a href="#s3" data-i="3"><span>Промпт</span></a>
-  <a href="#s4" data-i="4"><span>Тексеру</span></a>
-  <a href="#s5" data-i="5"><span>Сақтау</span></a>
-  <a href="#s6" data-i="6"><span>Педоқу</span></a>
-</nav>
+<header class="top" id="top">
+  <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+  <a class="brand" href="#hero"><span class="brand-mark" aria-hidden="true"></span>ЖИ · <i>шеберхана</i></a>
+  <button class="burger" type="button" aria-expanded="false" aria-controls="menu" aria-label="Мәзір"><span></span><span></span></button>
+  <nav id="menu" class="menu" aria-label="Негізгі мәзір">
+    <a href="#problem" data-nav="problem">Жоба</a>
+    <a href="#s1" data-nav="s1">Қадамдар</a>
+    <a href="#sim" data-nav="sim">Симулятор</a>
+    <a href="#idea" data-nav="idea">Идея</a>
+    <a href="#author" data-nav="author">Автор</a>
+  </nav>
+</header>
 
 <main>
-  <section id="s0" class="sec hero" data-ch data-side="l">
-    <div class="card bare">
-      <span class="kicker">Педагогикалық оқулар · көркем еңбек</span>
-      <h1>Сабақ симуляторын <em>Gemini</em>-мен жасау</h1>
-      <p class="lead">Мұғалім бағдарламалауды білмей-ақ 30–60 минутта интерактивті HTML-симулятор жасай алады. Мазмұн мен бағалауды мұғалім ойлайды, кодты Gemini жазады.</p>
-      <div class="meta"><span>6 қадам</span><span>1 файл: index.html</span><span>Бағдарлама орнатпай</span></div>
-      <a class="author-chip" href="#author">
-        <img src="img/avatar.jpg" alt="" width="56" height="56">
-        <span><b>Нсамбаева Нургуль Кемалхановна</b><small>Педагог-сарапшы · 18 жыл еңбек өтілі</small></span>
-      </a>
-      <p class="hint">Төмен айналдырыңыз <b aria-hidden="true">↓</b></p>
+  <!-- 0. Hero -->
+  <section id="hero" class="hero" data-ch="0" data-side="l">
+    <div class="hero-text">
+      <p class="hero-name reveal">Нсамбаева <b>Нургуль</b> Кемалхановна</p>
+      <h1 class="reveal">Сабақ симуляторын <em>Gemini</em>-мен жасау</h1>
+      <p class="lead reveal">Көркем еңбек мұғалімі ChatGPT-да промпт жазып, Gemini Canvas-та интерактивті HTML-симулятор жасайды. Бағдарламалау тілін білу міндетті емес.</p>
+      <div class="cta reveal">
+        <a class="btn" href="#problem">Жобамен танысу</a>
+        <a class="btn ghost" href="#sim">Симуляторды көру</a>
+      </div>
+      <p class="hero-role reveal">Педагог-сарапшы · 18 жыл еңбек өтілі</p>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="halo"></div>
+      <svg class="stroke" viewBox="0 0 600 220"><path d="M20 160 C 140 40, 260 210, 380 90 S 560 60, 585 120" /></svg>
+      <img class="artist" src="img/artist-cutout.webp" alt="" width="1122" height="1402" fetchpriority="high">
+      <span class="tag t1">Идея</span><span class="tag t2">Промпт</span><span class="tag t3">HTML</span>
+    </div>
+    <p class="scroll-hint" aria-hidden="true">Айналдырыңыз</p>
+  </section>
+
+  <!-- 1. Проблема -->
+  <section id="problem" class="sec" data-ch="1" data-side="r">
+    <div class="panel">
+      <span class="num">Мәселе</span>
+      <h2>Түсіндіруден — <em>әрекетке</em></h2>
+      <p>Шеберханада уақыт пен құрал шектеулі. Оқушы операцияны алғаш рет нақты материалда орындап, қатесін кеш байқайды. Симулятор оқушыға әрекетті алдын ала қауіпсіз ортада қайталауға мүмкіндік береді.</p>
+      <div class="scheme" aria-label="Дәстүрлі және интерактивті оқытуды салыстыру">
+        <div class="lane old">
+          <b>Дәстүрлі</b>
+          <span>Мұғалім түсіндіреді</span><span>Оқушы тыңдайды</span><span>Қате шеберханада білінеді</span>
+        </div>
+        <svg class="arrow" viewBox="0 0 60 200" aria-hidden="true"><path d="M10 10 C 50 60, 50 140, 10 190" /><path d="M2 178 L10 192 L22 182" /></svg>
+        <div class="lane new">
+          <b>Интерактивті</b>
+          <span>Оқушы әрекет етеді</span><span>Бірден кері байланыс</span><span>Қайталап, өзі түзетеді</span>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="s1" class="sec" data-ch data-side="l">
-    <div class="card">
-      <span class="num">01</span>
+  <!-- 2. ChatGPT → Gemini -->
+  <section id="ai" class="sec" data-ch="2" data-side="l">
+    <div class="panel">
+      <span class="num">Жұмыс тәсілі</span>
+      <h2>ChatGPT <em>жазады</em>, Gemini <em>жасайды</em></h2>
+      <ol class="pipe">
+        <li><b>Мұғалім</b><span>Тақырып, кезеңдер, рубрика</span></li>
+        <li><b>ChatGPT</b><span>Сценарийден толық промпт</span></li>
+        <li><b>Gemini Canvas</b><span>Промпттан index.html</span></li>
+        <li><b>Оқушы</b><span>Сілтеме немесе QR-код</span></li>
+      </ol>
+      <p class="note">Мазмұнды мұғалім ойлайды. ЖИ тек көмекші: оның әр нәтижесін мұғалім тексереді.</p>
+    </div>
+  </section>
+
+  <!-- 3–8. Шесть шагов -->
+  <section id="s1" class="sec" data-ch="3" data-side="l">
+    <div class="panel">
+      <span class="num">01 / 06</span>
       <h2>Сценарийді қағазға жазу</h2>
-      <p>Gemini-ді ашпас бұрын 15 минут дайындалыңыз. Сценарий неғұрлым нақты болса, нәтиже солғұрлым дұрыс шығады.</p>
+      <p>ЖИ-ді ашпас бұрын 15 минут дайындалыңыз. Сценарий неғұрлым нақты болса, нәтиже солғұрлым дұрыс шығады.</p>
       <ol class="steps">
-        <li><b>Тақырып.</b> Нақты нәтижесі бар, 4–6 операциядан тұратын тақырып: телефон тұғыры, кесу тақтайшасы, жастық тігу, ою салу.</li>
+        <li><b>Тақырып.</b> Нақты нәтижесі бар, 4–6 операциядан тұратын тақырып: телефон тұғыры, кесу тақтайшасы, жастық тігу, ою салу, түстерді араластыру.</li>
         <li><b>Кезеңдер.</b> Әр кезең үшін: оқушы не істейді, қандай жауап дұрыс, қате болса экранда не болады.</li>
         <li><b>Рубрика.</b> 3–5 критерий, әрқайсысы 0–2 ұпай. Ұпай тек орындалған әрекет үшін.</li>
         <li><b>Оқушыға нұсқаулық.</b> Сабақтың мақсаты, қауіпсіздік ережелері, қалай өту керек.</li>
@@ -57,14 +106,35 @@
     </div>
   </section>
 
-  <section id="s2" class="sec" data-ch data-side="r">
-    <div class="card">
-      <span class="num">02</span>
+  <section id="s2" class="sec" data-ch="4" data-side="r">
+    <div class="panel">
+      <span class="num">02 / 06</span>
+      <h2>ChatGPT-да промпт жазу</h2>
+      <p>Сценарийді ChatGPT-ға беріп, Gemini үшін толық промпт жаздырыңыз. Төмендегі сұранысты көшіріп, соңына өз сценарийіңізді қойыңыз.</p>
+      <div class="prompt small"><button class="copy" type="button" data-copy="pMeta">Көшіру</button><pre id="pMeta">Сен — әдіскер және промпт жазу маманысың. Төмендегі сабақ сценарийі бойынша Gemini Canvas-қа арналған толық промпт жаз.
+
+Промптта міндетті түрде болсын:
+- тақырып және сынып;
+- оқушыға арналған бастапқы нұсқаулық (мақсат, қауіпсіздік, қалай өту керек);
+- кезеңдер: әр кезеңде дұрыс жауап және қатенің салдары;
+- бағалау рубрикасы: әр критерий 0–2 ұпай, тек нақты әрекет үшін;
+- талап: бір ғана index.html файлы, барлық мәтін қазақ тілінде, телефонда ыңғайлы.
+
+Сценарий:
+[кестеңізді осында қойыңыз]</pre></div>
+      <p>Нәтиже төмендегі дайын үлгіге ұқсауы керек. Үлгіні бірден Gemini-ге де беруге болады.</p>
+      <button class="btn ghost sm" type="button" data-modal="promptModal">Дайын промпт үлгісін ашу</button>
+    </div>
+  </section>
+
+  <section id="s3" class="sec" data-ch="5" data-side="l">
+    <div class="panel">
+      <span class="num">03 / 06</span>
       <h2>Gemini-де Canvas режимін қосу</h2>
       <ol class="steps">
         <li><b>gemini.google.com</b> сайтын ашып, Google аккаунтымен кіріңіз.</li>
         <li>Хабарлама жолының астындағы <b>«Құралдар» / «Инструменты» / «Tools»</b> батырмасынан <b>Canvas</b> таңдаңыз.</li>
-        <li>Промпт үлгісін көшіріп, жақшадағы мәтінді өз тақырыбыңызбен ауыстырып, жіберіңіз.</li>
+        <li>ChatGPT жазған промптты (немесе дайын үлгіні) көшіріп, жақшадағы мәтінді өз тақырыбыңызбен ауыстырып, жіберіңіз.</li>
         <li>1–2 минут күтіңіз. Оң жақта Canvas терезесі ашылады.</li>
         <li><b>«Алдын ала қарау» / «Preview»</b> қойындысында симулятор бірден жұмыс істейді.</li>
       </ol>
@@ -72,12 +142,145 @@
     </div>
   </section>
 
-  <section id="s3" class="sec" data-ch data-side="l">
-    <div class="card wide">
-      <span class="num">03</span>
-      <h2>Промпт үлгісі</h2>
-      <p>Төртбұрыш жақшадағы мәтінді ауыстырыңыз, қалғанын өзгертпей жіберіңіз.</p>
-      <div class="prompt"><button class="copy" type="button" data-copy="pMain">Көшіру</button><pre id="pMain">Сен тәжірибелі веб-әзірлеуші және әдіскерсің. Canvas-та көркем еңбек сабағына арналған интерактивті симулятор жаса.
+  <section id="s4" class="sec" data-ch="6" data-side="r">
+    <div class="panel">
+      <span class="num">04 / 06</span>
+      <h2>Тексеру және түзету</h2>
+      <p>Симуляторды екі рет өтіңіз: алдымен бәрін дұрыс жасап, содан кейін әдейі қате жіберіп. Әр қатені сол чатта <b>бөлек хабарламамен</b> жазыңыз.</p>
+      <ul class="fixes">
+        <li><span>Батырма жұмыс істемейді</span><code id="f1">3-кезеңде «Тексеру» батырмасы жұмыс істемейді. Тек осы кезеңді түзет, қалғанын өзгертпе.</code><button class="copy sm" type="button" data-copy="f1">Көшіру</button></li>
+        <li><span>Телефонда сыймайды</span><code id="f2">Телефонда мәтін экраннан шығып тұр. Бейімделгіш етіп түзет.</code><button class="copy sm" type="button" data-copy="f2">Көшіру</button></li>
+        <li><span>Ұпай дұрыс емес</span><code id="f3">Ұпай кезеңді жай ашқанда да беріліп жатыр. Ұпайды тек дұрыс әрекеттен кейін бер.</code><button class="copy sm" type="button" data-copy="f3">Көшіру</button></li>
+        <li><span>Қатенің салдары көрінбейді</span><code id="f4">Қысқышсыз кессе, суретте кесік қисық болсын және себебі жазылсын.</code><button class="copy sm" type="button" data-copy="f4">Көшіру</button></li>
+      </ul>
+      <p class="note">Әр сәтті нұсқаны бөлек сақтаңыз: v1.html, v2.html. Кейінгі түзету бұзылса, алдыңғысына қайтасыз.</p>
+    </div>
+  </section>
+
+  <section id="s5" class="sec" data-ch="7" data-side="l">
+    <div class="panel">
+      <span class="num">05 / 06</span>
+      <h2>index.html етіп сақтау</h2>
+      <ol class="steps">
+        <li>Canvas-та <b>«Код»</b> қойындысын ашып, кодты түгел көшіріңіз (Ctrl+A, Ctrl+C).</li>
+        <li><b>Блокнотты</b> ашып, кодты қойыңыз (Ctrl+V).</li>
+        <li><b>Файл → Басқаша сақтау</b>: аты <code>index.html</code>, түрі «Барлық файлдар», кодтау <b>UTF-8</b>.</li>
+        <li>Файлды екі рет басыңыз: Chrome немесе Edge-те ашылуы керек.</li>
+      </ol>
+      <div class="ways">
+        <div><b>Gemini сілтемесі</b><span>«Бөлісу» батырмасы. Ең жылдам; Google аккаунты сұралуы мүмкін.</span></div>
+        <div><b>Файлдың өзі</b><span>WhatsApp, флешка, күнделік. Интернет жоқ сыныпқа.</span></div>
+        <div><b>Тұрақты сайт</b><span>Netlify Drop немесе GitHub Pages. Сілтемеден QR-код жасаңыз.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s6" class="sec" data-ch="8" data-side="r">
+    <div class="panel">
+      <span class="num">06 / 06</span>
+      <h2>Педоқуда көрсету: 5 минут</h2>
+      <ol class="timeline">
+        <li><time>0:00</time>Мәселе: уақыт пен құрал аз, оқушы алғашқы рет қателеседі.</li>
+        <li><time>1:00</time>Қағаздағы сценарий мен рубрика: мазмұнды мұғалім жасайды.</li>
+        <li><time>1:40</time>ChatGPT-да промпт, Gemini Canvas-та дайын симулятор.</li>
+        <li><time>2:40</time>Симуляторды өту, әдейі қате, ұпайдың азаюы.</li>
+        <li><time>3:40</time>Бір түзету промпты: ЖИ қатесін мұғалім тексереді.</li>
+        <li><time>4:20</time>QR-код арқылы әріптестерге беру.</li>
+      </ol>
+      <h3>Сабаққа дейін тексеріңіз</h3>
+      <ul class="check">
+        <li>Бастапқы экранда оқушыға нұсқаулық бар</li>
+        <li>Барлық кезең соңына дейін өтеді</li>
+        <li>Әдейі қате ұпайды азайтады</li>
+        <li>Өлшемдер технологиялық картаға сәйкес</li>
+        <li>Мәтін қазақша, қатесіз</li>
+        <li>Оқушының жеке деректері жиналмайды</li>
+      </ul>
+      <p class="note">Тиімділігі туралы болжам ретінде айтыңыз: апробация нәтижесі әлі жоқ.</p>
+      <a class="btn ghost sm" href="https://shyngly29-bit.github.io/sheberlab-3d/#sim" target="_blank" rel="noopener">Ағаш өңдеу симуляторы ↗</a>
+    </div>
+  </section>
+
+  <!-- 9. Практический симулятор -->
+  <section id="sim" class="sec sim-sec" data-ch="9" data-side="l">
+    <div class="panel sim" id="simRoot" aria-live="polite">
+      <span class="num">Демо симулятор</span>
+      <h2>Түстерді араластыру</h2>
+      <p class="sim-disclaimer">Оқу мақсатындағы шартты модель (қызыл–сары–көк түс шеңбері). Нақты бояулар пигментке қарай басқаша араласуы мүмкін.</p>
+      <ol class="sim-steps" aria-label="Кезеңдер"><li>Таңдау</li><li>Араластыру</li><li>Анықтау</li><li>Түсіндіру</li><li>Нәтиже</li></ol>
+      <div class="sim-body"></div>
+    </div>
+    <div class="sim-stage" id="simStage" aria-label="3D палитра мен бұйым: айналдыру үшін тартыңыз" role="img"><span>↔ 3D бұйымды айналдырыңыз</span></div>
+  </section>
+
+  <!-- 10. Результат -->
+  <section id="result" class="sec" data-ch="10" data-side="r">
+    <div class="panel">
+      <span class="num">Нәтиже</span>
+      <h2>Бағалау және кері байланыс</h2>
+      <p>Симулятор ұпайды тек нақты әрекет үшін береді. Әр дескриптор 0–2 ұпай, барлығы 8 ұпай.</p>
+      <table class="rubric">
+        <thead><tr><th>Дескриптор</th><th>2 ұпай</th><th>1 ұпай</th></tr></thead>
+        <tbody>
+          <tr><td>Бастапқы түстерді дұрыс таңдау</td><td>1-талпыныс</td><td>2-талпыныс</td></tr>
+          <tr><td>Араластыруды орындау</td><td>Толық араластырды</td><td>1 рет асықты</td></tr>
+          <tr><td>Алынған түсті анықтау</td><td>1-талпыныс</td><td>2-талпыныс</td></tr>
+          <tr><td>Нәтижені түсіндіру</td><td>1-талпыныс</td><td>2-талпыныс</td></tr>
+        </tbody>
+      </table>
+      <div class="last" id="lastResult"><b>Сіздің соңғы нәтижеңіз</b><span>Симуляторды өткен соң осында шығады.</span></div>
+      <h3>Педагогикалық тұжырым</h3>
+      <ul class="check">
+        <li>Оқушы қатені өзі байқап, қайта тәжірибе жасайды</li>
+        <li>Кері байланыс бірден, нақты әрекетке байланысты беріледі</li>
+        <li>Мұғалім нәтижені дескриптор бойынша көреді</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Педагогическая идея -->
+  <section id="idea" class="idea">
+    <div class="idea-head reveal">
+      <span class="num">Педагогикалық идея</span>
+      <h2>ЖИ көмегімен жасалған <em>интерактивті</em> сабақ симуляторлары</h2>
+    </div>
+    <div class="idea-grid">
+      <article class="reveal"><h3>Өзектілігі</h3><p>Шеберханада құрал мен уақыт шектеулі, ал оқушы операцияны көбіне дайындықсыз орындайды. Мұғалімге әр тақырыпқа арналған қолжетімді интерактивті құрал қажет.</p></article>
+      <article class="reveal"><h3>Мақсаты</h3><p>ChatGPT және Gemini көмегімен әр оқу тақырыбына HTML-симулятор жасап, оқушылардың технологиялық әрекетті саналы әрі қауіпсіз орындау дағдысын қалыптастыру.</p></article>
+      <article class="reveal"><h3>Міндеттері</h3><ul><li>Тақырыпты кезеңдерге бөліп, сценарий құру</li><li>Сценарийден промпт жазып, симулятор жасау</li><li>Дескриптор бойынша формативті бағалауды енгізу</li><li>Симуляторды сабаққа және үй тапсырмасына кіріктіру</li></ul></article>
+      <article class="reveal"><h3>Жаңашылдығы</h3><p>Мұғалім бағдарламалауды білмей-ақ жеке симулятор жасайды. Ұпай тек нақты әрекет үшін беріледі, оқушы қатенің салдарын бірден көреді.</p></article>
+      <article class="reveal"><h3>Практикалық маңыздылығы</h3><p>Симулятор жаңа тақырыпқа кіріспеде, шеберханаға дейінгі жаттығуда және QR-код арқылы үй тапсырмасында қолданылады. Әріптестер үлгіні өз пәніне бейімдей алады.</p></article>
+      <article class="reveal"><h3>Күтілетін нәтижелері</h3><ul><li>Оқушылар операция реті мен түстер заңдылығын түсіндіре алады</li><li>Материалды бүлдіру жағдайлары азаяды</li><li>Мұғалімде формативті бағалау құралы пайда болады</li></ul><p class="note">Бұл — болжамды нәтижелер. Апробация әлі өткізілген жоқ.</p></article>
+    </div>
+  </section>
+
+  <!-- Автор -->
+  <section id="author" class="author">
+    <div class="author-card reveal">
+      <img src="img/artist-studio.webp" alt="Нсамбаева Нургуль Кемалхановна шеберханада" width="1122" height="1402" loading="lazy">
+      <div>
+        <span class="num">Авторы</span>
+        <h2>Нсамбаева Нургуль Кемалхановна</h2>
+        <p class="role">Педагог-сарапшы</p>
+        <div class="facts">
+          <div><b>18</b><span>жыл еңбек өтілі</span></div>
+          <div><b>6</b><span>қадамдық нұсқаулық</span></div>
+        </div>
+        <p>Мұғалімдерге ЖИ көмегімен сабаққа арналған интерактивті HTML-симулятор жасауды үйрететін нұсқаулық.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">Демо-нұсқа · ЖИ жасаған кодты мұғалім міндетті түрде тексереді</footer>
+
+<!-- Модальное окно: полный промпт -->
+<div class="modal" id="promptModal" role="dialog" aria-modal="true" aria-labelledby="pmTitle" hidden>
+  <div class="modal-box">
+    <button class="modal-x" type="button" data-close aria-label="Жабу">×</button>
+    <h3 id="pmTitle">Дайын промпт үлгісі</h3>
+    <p>Төртбұрыш жақшадағы мәтінді ауыстырыңыз, қалғанын өзгертпей жіберіңіз.</p>
+    <div class="prompt"><button class="copy" type="button" data-copy="pMain">Көшіру</button><pre id="pMain">Сен тәжірибелі веб-әзірлеуші және әдіскерсің. Canvas-та көркем еңбек сабағына арналған интерактивті симулятор жаса.
 
 Тақырып: [ағаштан телефон тұғырын жасау], [6]-сынып.
 Тіл: барлық мәтін қазақ тілінде.
@@ -104,87 +307,10 @@
 Дизайн: таза, ұстамды, үлкен батырмалар, анық қаріп, түстер [сарғыш, қою жасыл, ағаш түсі]. Суреттерді SVG арқылы сал.
 
 Алдымен кезеңдер жоспарын қысқаша жаз, содан кейін толық кодты бер.</pre></div>
-    </div>
-  </section>
+  </div>
+</div>
 
-  <section id="s4" class="sec" data-ch data-side="r">
-    <div class="card">
-      <span class="num">04</span>
-      <h2>Тексеру және түзету</h2>
-      <p>Симуляторды екі рет өтіңіз: алдымен бәрін дұрыс жасап, содан кейін әдейі қате жіберіп. Әр қатені сол чатта <b>бөлек хабарламамен</b> жазыңыз.</p>
-      <ul class="fixes">
-        <li><span>Батырма жұмыс істемейді</span><code id="f1">3-кезеңде «Тексеру» батырмасы жұмыс істемейді. Тек осы кезеңді түзет, қалғанын өзгертпе.</code><button class="copy sm" type="button" data-copy="f1">Көшіру</button></li>
-        <li><span>Телефонда сыймайды</span><code id="f2">Телефонда мәтін экраннан шығып тұр. Бейімделгіш етіп түзет.</code><button class="copy sm" type="button" data-copy="f2">Көшіру</button></li>
-        <li><span>Ұпай дұрыс емес</span><code id="f3">Ұпай кезеңді жай ашқанда да беріліп жатыр. Ұпайды тек дұрыс әрекеттен кейін бер.</code><button class="copy sm" type="button" data-copy="f3">Көшіру</button></li>
-        <li><span>Қатенің салдары көрінбейді</span><code id="f4">Қысқышсыз кессе, суретте кесік қисық болсын және себебі жазылсын.</code><button class="copy sm" type="button" data-copy="f4">Көшіру</button></li>
-      </ul>
-      <p class="note">Әр сәтті нұсқаны бөлек сақтаңыз: v1.html, v2.html. Кейінгі түзету бұзылса, алдыңғысына қайтасыз.</p>
-    </div>
-  </section>
-
-  <section id="s5" class="sec" data-ch data-side="l">
-    <div class="card">
-      <span class="num">05</span>
-      <h2>index.html етіп сақтау</h2>
-      <ol class="steps">
-        <li>Canvas-та <b>«Код»</b> қойындысын ашып, кодты түгел көшіріңіз (Ctrl+A, Ctrl+C).</li>
-        <li><b>Блокнотты</b> ашып, кодты қойыңыз (Ctrl+V).</li>
-        <li><b>Файл → Басқаша сақтау</b>: аты <code>index.html</code>, түрі «Барлық файлдар», кодтау <b>UTF-8</b>.</li>
-        <li>Файлды екі рет басыңыз: Chrome немесе Edge-те ашылуы керек.</li>
-      </ol>
-      <div class="ways">
-        <div><b>Gemini сілтемесі</b><span>«Бөлісу» батырмасы. Ең жылдам; Google аккаунты сұралуы мүмкін.</span></div>
-        <div><b>Файлдың өзі</b><span>WhatsApp, флешка, күнделік. Интернет жоқ сыныпқа.</span></div>
-        <div><b>Тұрақты сайт</b><span>Netlify Drop немесе GitHub Pages. Сілтемеден QR-код жасаңыз.</span></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="s6" class="sec" data-ch data-side="r">
-    <div class="card">
-      <span class="num">06</span>
-      <h2>Педоқуда көрсету: 5 минут</h2>
-      <ol class="timeline">
-        <li><time>0:00</time>Мәселе: уақыт пен құрал аз, оқушы алғашқы рет қателеседі.</li>
-        <li><time>1:00</time>Қағаздағы сценарий мен рубрика: мазмұнды мұғалім жасайды.</li>
-        <li><time>1:40</time>Gemini-ге промпт, Canvas-та дайын симулятор.</li>
-        <li><time>2:40</time>Симуляторды өту, әдейі қате, ұпайдың азаюы.</li>
-        <li><time>3:40</time>Бір түзету промпты: ЖИ қатесін мұғалім тексереді.</li>
-        <li><time>4:20</time>QR-код арқылы әріптестерге беру.</li>
-      </ol>
-      <h3>Сабаққа дейін тексеріңіз</h3>
-      <ul class="check">
-        <li>Бастапқы экранда оқушыға нұсқаулық бар</li>
-        <li>Барлық кезең соңына дейін өтеді</li>
-        <li>Әдейі қате ұпайды азайтады</li>
-        <li>Өлшемдер технологиялық картаға сәйкес</li>
-        <li>Мәтін қазақша, қатесіз</li>
-        <li>Оқушының жеке деректері жиналмайды</li>
-      </ul>
-      <p class="note">Тиімділігі туралы болжам ретінде айтыңыз: апробация нәтижесі әлі жоқ.</p>
-      <a class="btn" href="https://shyngly29-bit.github.io/sheberlab-3d/#sim" target="_blank" rel="noopener">Дайын симулятор мысалы ↗</a>
-    </div>
-  </section>
-
-  <section id="author" class="author">
-    <div class="author-card">
-      <img src="img/portrait.jpg" alt="Нсамбаева Нургуль Кемалхановна" width="540" height="720" loading="lazy">
-      <div>
-        <span class="kicker">Авторы</span>
-        <h2>Нсамбаева Нургуль Кемалхановна</h2>
-        <p class="role">Педагог-сарапшы</p>
-        <div class="facts">
-          <div><b>18</b><span>жыл еңбек өтілі</span></div>
-          <div><b>6</b><span>қадамдық нұсқаулық</span></div>
-        </div>
-        <p>Мұғалімдерге ЖИ көмегімен сабаққа арналған интерактивті HTML-симулятор жасауды үйрететін нұсқаулық.</p>
-      </div>
-    </div>
-  </section>
-</main>
-
-<footer class="foot">Демо-нұсқа · ЖИ жасаған кодты мұғалім міндетті түрде тексереді</footer>
-
-<script type="module" src="app.js?v=3"></script>
+<script type="module" src="sim.js?v=5"></script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>
