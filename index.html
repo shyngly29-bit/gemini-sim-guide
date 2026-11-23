@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сабақ симуляторын Gemini-мен жасау</title>
+<meta name="description" content="Көркем еңбек мұғаліміне нұсқаулық: Gemini Canvas арқылы сабаққа арналған HTML-симуляторды кезең-кезеңімен жасау, тексеру, сақтау және таратау.">
+<meta name="theme-color" content="#0E1020">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=1">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+
+<nav class="dots" aria-label="Бөлімдер">
+  <a href="#s0" data-i="0"><span>Басы</span></a>
+  <a href="#s1" data-i="1"><span>Дайындық</span></a>
+  <a href="#s2" data-i="2"><span>Gemini</span></a>
+  <a href="#s3" data-i="3"><span>Промпт</span></a>
+  <a href="#s4" data-i="4"><span>Тексеру</span></a>
+  <a href="#s5" data-i="5"><span>Сақтау</span></a>
+  <a href="#s6" data-i="6"><span>Педоқу</span></a>
+</nav>
+
+<main>
+  <section id="s0" class="sec hero" data-ch data-side="l">
+    <div class="card bare">
+      <span class="kicker">Педагогикалық оқулар · көркем еңбек</span>
+      <h1>Сабақ симуляторын <em>Gemini</em>-мен жасау</h1>
+      <p class="lead">Мұғалім бағдарламалауды білмей-ақ 30–60 минутта интерактивті HTML-симулятор жасай алады. Мазмұн мен бағалауды мұғалім ойлайды, кодты Gemini жазады.</p>
+      <div class="meta"><span>6 қадам</span><span>1 файл: index.html</span><span>Бағдарлама орнатпай</span></div>
+      <p class="hint">Төмен айналдырыңыз <b aria-hidden="true">↓</b></p>
+    </div>
+  </section>
+
+  <section id="s1" class="sec" data-ch data-side="l">
+    <div class="card">
+      <span class="num">01</span>
+      <h2>Сценарийді қағазға жазу</h2>
+      <p>Gemini-ді ашпас бұрын 15 минут дайындалыңыз. Сценарий неғұрлым нақты болса, нәтиже солғұрлым дұрыс шығады.</p>
+      <ol class="steps">
+        <li><b>Тақырып.</b> Нақты нәтижесі бар, 4–6 операциядан тұратын тақырып: телефон тұғыры, кесу тақтайшасы, жастық тігу, ою салу.</li>
+        <li><b>Кезеңдер.</b> Әр кезең үшін: оқушы не істейді, қандай жауап дұрыс, қате болса экранда не болады.</li>
+        <li><b>Рубрика.</b> 3–5 критерий, әрқайсысы 0–2 ұпай. Ұпай тек орындалған әрекет үшін.</li>
+        <li><b>Оқушыға нұсқаулық.</b> Сабақтың мақсаты, қауіпсіздік ережелері, қалай өту керек.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="s2" class="sec" data-ch data-side="r">
+    <div class="card">
+      <span class="num">02</span>
+      <h2>Gemini-де Canvas режимін қосу</h2>
+      <ol class="steps">
+        <li><b>gemini.google.com</b> сайтын ашып, Google аккаунтымен кіріңіз.</li>
+        <li>Хабарлама жолының астындағы <b>«Құралдар» / «Инструменты» / «Tools»</b> батырмасынан <b>Canvas</b> таңдаңыз.</li>
+        <li>Промпт үлгісін көшіріп, жақшадағы мәтінді өз тақырыбыңызбен ауыстырып, жіберіңіз.</li>
+        <li>1–2 минут күтіңіз. Оң жақта Canvas терезесі ашылады.</li>
+        <li><b>«Алдын ала қарау» / «Preview»</b> қойындысында симулятор бірден жұмыс істейді.</li>
+      </ol>
+      <p class="note">Батырмалардың атауы Gemini нұсқасына қарай өзгеруі мүмкін. Canvas табылмаса, промпттың басына «Canvas-та жаса» деп жазыңыз.</p>
+    </div>
+  </section>
+
+  <section id="s3" class="sec" data-ch data-side="l">
+    <div class="card wide">
+      <span class="num">03</span>
+      <h2>Промпт үлгісі</h2>
+      <p>Төртбұрыш жақшадағы мәтінді ауыстырыңыз, қалғанын өзгертпей жіберіңіз.</p>
+      <div class="prompt"><button class="copy" type="button" data-copy="pMain">Көшіру</button><pre id="pMain">Сен тәжірибелі веб-әзірлеуші және әдіскерсің. Canvas-та көркем еңбек сабағына арналған интерактивті симулятор жаса.
+
+Тақырып: [ағаштан телефон тұғырын жасау], [6]-сынып.
+Тіл: барлық мәтін қазақ тілінде.
+Формат: бір ғана index.html файлы (HTML, CSS, JavaScript бір файлда). Компьютерде, телефонда және интерактивті тақтада ыңғайлы болсын.
+
+Бастапқы экран — оқушыға нұсқаулық:
+- сабақтың мақсаты: [...]
+- қауіпсіздік ережелері: [...]
+- қалай өту керек (3–4 қысқа қадам)
+- «Бастау» батырмасы.
+
+Кезеңдер:
+1. [Материал таңдау: фанера — дұрыс, МДФ — қате, себебін түсіндір]
+2. [Өлшеу: ұзындығы 130–160 мм, ені 70–90 мм]
+3. [Белгілеу: сызықты 60 мм-ге қою, ауытқу ±2 мм]
+4. [Өңдеу реті: қысқыш → ара → егеу → зімпара]
+5. [Құрастыру: желім → тірек → бұрыш 60–70°]
+6. Нәтиже және бағалау.
+
+Әр кезеңде: жоғарыда қысқа тапсырма мәтіні; оқушы әрекет жасайды; «Тексеру» батырмасы; қате болса не дұрыс емес екенін және неге екенін көрсет; дұрыс болса ғана келесі кезең ашылады; артқа қайтуға болады. Жоғарыда кезеңдер жолағы көрініп тұрсын.
+
+Бағалау: [5] критерий, әрқайсысы 0–2 ұпай. Ұпай тек нақты әрекет үшін беріледі (0 қате = 2, 1–2 қате = 1, көбі = 0). Соңында жалпы ұпай, қателер тізімі және ұсыныстар шықсын. «Қайта бастау» батырмасы болсын.
+
+Дизайн: таза, ұстамды, үлкен батырмалар, анық қаріп, түстер [сарғыш, қою жасыл, ағаш түсі]. Суреттерді SVG арқылы сал.
+
+Алдымен кезеңдер жоспарын қысқаша жаз, содан кейін толық кодты бер.</pre></div>
+    </div>
+  </section>
+
+  <section id="s4" class="sec" data-ch data-side="r">
+    <div class="card">
+      <span class="num">04</span>
+      <h2>Тексеру және түзету</h2>
+      <p>Симуляторды екі рет өтіңіз: алдымен бәрін дұрыс жасап, содан кейін әдейі қате жіберіп. Әр қатені сол чатта <b>бөлек хабарламамен</b> жазыңыз.</p>
+      <ul class="fixes">
+        <li><span>Батырма жұмыс істемейді</span><code id="f1">3-кезеңде «Тексеру» батырмасы жұмыс істемейді. Тек осы кезеңді түзет, қалғанын өзгертпе.</code><button class="copy sm" type="button" data-copy="f1">Көшіру</button></li>
+        <li><span>Телефонда сыймайды</span><code id="f2">Телефонда мәтін экраннан шығып тұр. Бейімделгіш етіп түзет.</code><button class="copy sm" type="button" data-copy="f2">Көшіру</button></li>
+        <li><span>Ұпай дұрыс емес</span><code id="f3">Ұпай кезеңді жай ашқанда да беріліп жатыр. Ұпайды тек дұрыс әрекеттен кейін бер.</code><button class="copy sm" type="button" data-copy="f3">Көшіру</button></li>
+        <li><span>Қатенің салдары көрінбейді</span><code id="f4">Қысқышсыз кессе, суретте кесік қисық болсын және себебі жазылсын.</code><button class="copy sm" type="button" data-copy="f4">Көшіру</button></li>
+      </ul>
+      <p class="note">Әр сәтті нұсқаны бөлек сақтаңыз: v1.html, v2.html. Кейінгі түзету бұзылса, алдыңғысына қайтасыз.</p>
+    </div>
+  </section>
+
+  <section id="s5" class="sec" data-ch data-side="l">
+    <div class="card">
+      <span class="num">05</span>
+      <h2>index.html етіп сақтау</h2>
+      <ol class="steps">
+        <li>Canvas-та <b>«Код»</b> қойындысын ашып, кодты түгел көшіріңіз (Ctrl+A, Ctrl+C).</li>
+        <li><b>Блокнотты</b> ашып, кодты қойыңыз (Ctrl+V).</li>
+        <li><b>Файл → Басқаша сақтау</b>: аты <code>index.html</code>, түрі «Барлық файлдар», кодтау <b>UTF-8</b>.</li>
+        <li>Файлды екі рет басыңыз: Chrome немесе Edge-те ашылуы керек.</li>
+      </ol>
+      <div class="ways">
+        <div><b>Gemini сілтемесі</b><span>«Бөлісу» батырмасы. Ең жылдам; Google аккаунты сұралуы мүмкін.</span></div>
+        <div><b>Файлдың өзі</b><span>WhatsApp, флешка, күнделік. Интернет жоқ сыныпқа.</span></div>
+        <div><b>Тұрақты сайт</b><span>Netlify Drop немесе GitHub Pages. Сілтемеден QR-код жасаңыз.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s6" class="sec" data-ch data-side="r">
+    <div class="card">
+      <span class="num">06</span>
+      <h2>Педоқуда көрсету: 5 минут</h2>
+      <ol class="timeline">
+        <li><time>0:00</time>Мәселе: уақыт пен құрал аз, оқушы алғашқы рет қателеседі.</li>
+        <li><time>1:00</time>Қағаздағы сценарий мен рубрика: мазмұнды мұғалім жасайды.</li>
+        <li><time>1:40</time>Gemini-ге промпт, Canvas-та дайын симулятор.</li>
+        <li><time>2:40</time>Симуляторды өту, әдейі қате, ұпайдың азаюы.</li>
+        <li><time>3:40</time>Бір түзету промпты: ЖИ қатесін мұғалім тексереді.</li>
+        <li><time>4:20</time>QR-код арқылы әріптестерге беру.</li>
+      </ol>
+      <h3>Сабаққа дейін тексеріңіз</h3>
+      <ul class="check">
+        <li>Бастапқы экранда оқушыға нұсқаулық бар</li>
+        <li>Барлық кезең соңына дейін өтеді</li>
+        <li>Әдейі қате ұпайды азайтады</li>
+        <li>Өлшемдер технологиялық картаға сәйкес</li>
+        <li>Мәтін қазақша, қатесіз</li>
+        <li>Оқушының жеке деректері жиналмайды</li>
+      </ul>
+      <p class="note">Тиімділігі туралы болжам ретінде айтыңыз: апробация нәтижесі әлі жоқ.</p>
+      <a class="btn" href="https://shyngly29-bit.github.io/sheberlab-3d/#sim" target="_blank" rel="noopener">Дайын симулятор мысалы ↗</a>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">Демо-нұсқа · ЖИ жасаған кодты мұғалім міндетті түрде тексереді</footer>
+
+<script type="module" src="app.js?v=1"></script>
+</body>
+</html>
