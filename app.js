@@ -91,7 +91,14 @@ function initGsap() {
   const qx = g.quickTo('.artist', 'x', { duration: .8, ease: 'power3' }), qr = g.quickTo('.artist', 'rotation', { duration: .8, ease: 'power3' });
   const hx = g.quickTo('.halo', 'x', { duration: 1.2, ease: 'power3' });
   addEventListener('pointermove', e => { const nx = e.clientX / innerWidth - .5; qx(nx * 14); qr(nx * 1.2); hx(nx * -20); }, { passive: true });
-  g.to('.hero-art', { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
+  // Вход в сцену: герой уходит, подпись появляется и растворяется
+  g.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
+    .to('.hero-art', { scale: 1.18, yPercent: -6, opacity: 0, ease: 'power1.in' }, 0)
+    .to('.hero-text', { y: -90, opacity: 0, ease: 'power1.in' }, 0);
+  g.timeline({ scrollTrigger: { trigger: '#enter', start: 'top bottom', end: 'bottom top', scrub: true } })
+    .fromTo('.enter-cap', { opacity: 0, scale: .9, letterSpacing: '.02em' }, { opacity: 1, scale: 1, duration: .35 })
+    .to('.enter-cap', { opacity: 1, duration: .3 })
+    .to('.enter-cap', { opacity: 0, scale: 1.25, duration: .35 });
   g.to('.tag', { y: i => (i % 2 ? -10 : 10), duration: 2.4, repeat: -1, yoyo: true, ease: 'sine.inOut' });
 }
 
@@ -134,7 +141,9 @@ function chatBubble(g, x, y, w, text, me, k) {
 
 function drawScreen(g, W, H, ch, k) {
   g.save(); g.textAlign = 'left';
-  if (ch <= 1) {
+  if (ch === -1) {
+    g.fillStyle = C.paper; g.fillRect(0, 0, W, H); spark(g, W / 2, H / 2, 140 + k * 60);
+  } else if (ch <= 1) {
     g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
     g.strokeStyle = 'rgba(198,166,117,.5)'; g.lineWidth = 3; rr(g, 40, 40, W - 80, H - 80, 30); g.stroke();
     spark(g, W / 2, 230, 90);
@@ -272,6 +281,17 @@ function init() {
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.875), new THREE.MeshBasicMaterial({ map: stex, toneMapped: false })); screen.position.set(0, 1.025, 0.042); hinge.add(screen);
   addShadow(0, 0, 4.4, 3.2);
 
+  // Дверной проём мастерской: камера пролетает сквозь него при прокрутке
+  const door = new THREE.Group(); door.position.set(0.2, 0, 7.2); scene.add(door);
+  const doorMat = new THREE.MeshStandardMaterial({ map: woodTexture('#8A5A36', '#5E3B22'), roughness: 0.6 });
+  [-4.1, 4.1].forEach(x => { const p = new THREE.Mesh(new RoundedBoxGeometry(0.34, 4.8, 0.34, 3, 0.04), doorMat); p.position.set(x, 2.7, 0); p.scale.y = 1.13; p.castShadow = true; door.add(p); });
+  const lintel = new THREE.Mesh(new RoundedBoxGeometry(8.7, 0.4, 0.4, 3, 0.05), doorMat); lintel.position.y = 5.4; door.add(lintel);
+  const sgc = document.createElement('canvas'); sgc.width = 1024; sgc.height = 220; const sgg = sgc.getContext('2d');
+  const drawSign = () => { sgg.fillStyle = C.forest; sgg.fillRect(0, 0, 1024, 220); sgg.strokeStyle = C.gold; sgg.lineWidth = 6; sgg.strokeRect(14, 14, 996, 192); sgg.fillStyle = C.ivory; sgg.font = '700 96px \"Playfair Display\"'; sgg.textAlign = 'center'; sgg.fillText('Шеберхана', 512, 140); };
+  drawSign(); const sgt = new THREE.CanvasTexture(sgc); sgt.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.52), new THREE.MeshStandardMaterial({ map: sgt, roughness: 0.6 })); sign.position.set(0, 4.75, 0.22); door.add(sign);
+  [-0.9, 0.9].forEach(x => { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4, 6), new THREE.MeshStandardMaterial({ color: C.gold, metalness: 1, roughness: 0.3 })); r.position.set(x, 5.1, 0.22); door.add(r); });
+
   // Палитра художника
   function makePalette(colors) {
     const s = new THREE.Shape(); s.absellipse(0, 0, 0.95, 0.68, 0, Math.PI * 2, false, 0);
@@ -376,7 +396,8 @@ function init() {
 
   // Ключи камеры по сценам: [позиция, цель]
   const KEYS = [
-    [[0.8, 3.4, 9.0], [0.2, 0.9, 0]],
+    [[0.8, 3.3, 10.8], [0.2, 1.0, 0]],
+    [[0.1, 1.6, 4.3], [0, 1.1, 0]],
     [[-1.2, 2.3, 4.8], [-2.1, 0.4, 0.9]],
     [[1.2, 2.4, 5.6], [0.3, 1.1, 0]],
     [[-0.3, 2.4, 5.4], [0, 1.1, 0]],
@@ -388,10 +409,10 @@ function init() {
     [[1.9, 3.1, 5.6], [2.6, 0.2, 0.9]],
     [[3.6, 1.6, 3.5], [3.1, 0.35, 0.6]],
   ].map(([p, t]) => [new THREE.Vector3(...p), new THREE.Vector3(...t)]);
-  const sides = sections.map(s => (s.dataset.side === 'r' ? 1 : -1));
+  const sides = sections.map(s => (s.dataset.side === 'r' ? 1 : s.dataset.side === 'l' ? -1 : 0));
 
   let W = 0, H = 0, mobile = false;
-  function resize() { W = innerWidth; H = innerHeight; mobile = W <= 820; renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); }
+  function resize() { W = innerWidth; H = innerHeight; mobile = W <= 820; door.visible = !mobile; renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); }
   addEventListener('resize', resize); resize();
   const mouse = { x: 0, y: 0 };
   addEventListener('pointermove', e => { mouse.x = e.clientX / W - .5; mouse.y = e.clientY / H - .5; }, { passive: true });
@@ -404,7 +425,7 @@ function init() {
 
   let tTarget = scrollT(), tS = tTarget, instant = false, offX = sides[0] * 0.2;
   addEventListener('scroll', () => { tTarget = scrollT(); }, { passive: true });
-  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { drawPaper(); ptex.needsUpdate = true; drawFile(); ftex.needsUpdate = true; lastKey = ''; });
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { drawPaper(); ptex.needsUpdate = true; drawFile(); ftex.needsUpdate = true; drawSign(); sgt.needsUpdate = true; lastKey = ''; });
   const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(); const clock = new THREE.Clock(); const t0 = performance.now();
 
   function update() {
@@ -425,11 +446,12 @@ function init() {
     const open = reduce ? 1 : smooth(clamp((performance.now() - t0) / 1800));
     hinge.rotation.x = Math.PI / 2 * (1 - open) - 0.18 * open;
 
-    const ch = clamp(Math.round(tS), 0, 10), k = reduce ? 1 : clamp((tS - ch + 0.5) / 0.65);
+    // Сцена 1 — пролёт входа; контентные главы смещены на 1
+    const chS = clamp(Math.round(tS), 0, KEYS.length - 1), ch = chS === 0 ? 0 : chS === 1 ? -1 : chS - 1, k = reduce ? 1 : clamp((tS - chS + 0.5) / 0.65);
     const keyS = ch + ':' + Math.round(k * 40);
     if (keyS !== lastKey) { lastKey = keyS; drawScreen(sctx, SW, SH, ch, k); stex.needsUpdate = true; }
 
-    const w = i => smooth(clamp(1 - Math.abs(tS - i) * 1.25));
+    const w = i => smooth(clamp(1 - Math.abs(tS - (i === 0 ? 0 : i + 1)) * 1.25));
     sats.forEach(s => {
       const n = mobile ? s.mndc : s.ndc;
       const wt = n ? w(s.ch) : 0; s.obj.visible = wt > 0.01; if (!s.obj.visible) return;

@@ -76,6 +76,14 @@ code,pre{font-family:var(--mono)}
 .scroll-hint::after{content:"";display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(var(--burg),transparent);animation:drip 1.8s ease-in-out infinite}
 @keyframes drip{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 
+/* Вход в сцену */
+.enter{height:220vh;position:relative}
+.enter-cap{position:sticky;top:34vh;display:grid;justify-items:center;text-align:center;gap:6px;pointer-events:none;padding:0 16px}
+.enter-cap span{font:600 12px var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--burg)}
+.enter-cap b{font:700 clamp(56px,10vw,150px)/1 var(--serif);color:var(--forest);text-shadow:0 2px 30px rgba(247,243,235,.9)}
+.enter-cap small{font:italic 600 clamp(18px,2vw,26px) var(--serif);color:var(--burg);text-shadow:0 1px 16px rgba(247,243,235,.9)}
+.js-anim .enter-cap{opacity:0}
+
 /* Сцены */
 .sec{min-height:135vh;display:flex;align-items:center;padding:14vh clamp(16px,6vw,96px)}
 .sec[data-side="r"]{justify-content:flex-end}
